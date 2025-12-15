@@ -215,6 +215,24 @@
             font-size: 20px;
             opacity: 0.9;
         }
+        .image-fallback {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+            padding: 40px;
+        }
+        .image-fallback i {
+            font-size: 72px;
+            margin-bottom: 20px;
+            opacity: 0.7;
+        }
     </style>
 </head>
 <body>
@@ -361,6 +379,9 @@
                 slides = await response.json();
                 console.log(`✅ Loaded ${slides.length} image(s) from API`);
                 
+                // DEBUG: Visa vad vi fick från API:et
+                console.log('📋 First slide data:', slides[0]);
+                
                 // Om inga bilder i databasen, kolla i mappen
                 if (slides.length === 0) {
                     console.warn('⚠️ No images in database, checking images folder...');
@@ -401,7 +422,8 @@
                         title: filename.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "),
                         description: '',
                         order: index + 1,
-                        active: true
+                        active: true,
+                        uploaded: new Date().toISOString()
                     }));
                 
                 console.log(`📁 Found ${slides.length} image(s) in folder`);
@@ -455,8 +477,38 @@
                 slideElement.setAttribute('aria-hidden', index !== 0);
                 slideElement.setAttribute('aria-label', `Bild ${index + 1}: ${slide.title || ''}`);
                 
-                // Bygg bild-URL
-                const imageUrl = `/images/${encodeURIComponent(slide.filename)}`;
+                // FIX: Använd rätt filnamn - testa olika fält
+                let imageFilename = slide.filename || slide.originalname || `image_${slide.id}.jpg`;
+                
+                // DEBUG: Logga vilket filnamn vi använder
+                console.log(`Slide ${index + 1}:`, {
+                    id: slide.id,
+                    filename: slide.filename,
+                    originalname: slide.originalname,
+                    usingFilename: imageFilename
+                });
+                
+                // Bygg bild-URL - ESCAPE specialtecken
+                const imageUrl = `/images/${encodeURIComponent(imageFilename)}`;
+                
+                // Testa om bilden finns innan vi skapar HTML
+                checkImageExists(imageUrl).then(exists => {
+                    if (!exists) {
+                        console.warn(`⚠️ Image not found: ${imageUrl}`);
+                        console.log('Trying alternative filenames...');
+                        
+                        // Testa olika filnamn-variationer
+                        const alternativeFilenames = [
+                            slide.originalname,
+                            slide.filename?.replace(/_/g, '-'),
+                            `image_${slide.id}.jpg`,
+                            'fallback.jpg'
+                        ];
+                        
+                        // Testa varje alternativ
+                        testAlternativeFilenames(alternativeFilenames, slideElement, slide);
+                    }
+                });
                 
                 // Skapa slide-innehåll
                 slideElement.innerHTML = `
@@ -464,7 +516,7 @@
                          alt="${slide.title || 'Bild ' + (index + 1)}" 
                          class="slide-image"
                          loading="${index === 0 ? 'eager' : 'lazy'}"
-                         onerror="handleImageError(this, '${slide.filename.replace(/'/g, "\\'")}')">
+                         onerror="handleImageError(this, '${imageFilename.replace(/'/g, "\\'")}', ${slide.id})">
                     
                     ${slide.title || slide.description ? `
                     <div class="slide-info" aria-live="polite" aria-atomic="true">
@@ -478,13 +530,118 @@
             });
         }
 
-        // Global felhanterare för bilder
-        window.handleImageError = function(imgElement, filename) {
-            console.warn(`⚠️ Failed to load image: ${filename}`);
-            imgElement.src = 'https://via.placeholder.com/1920x1080/1e3c72/ffffff?text=Sj%C3%A4levads+Bygg';
-            imgElement.alt = 'Bild kunde inte laddas';
-            imgElement.style.objectFit = 'cover';
+        // Testa alternativa filnamn
+        async function testAlternativeFilenames(filenames, slideElement, slide) {
+            for (const altFilename of filenames) {
+                if (!altFilename) continue;
+                
+                const altUrl = `/images/${encodeURIComponent(altFilename)}`;
+                const exists = await checkImageExists(altUrl);
+                
+                if (exists) {
+                    console.log(`✅ Found alternative: ${altFilename}`);
+                    // Uppdatera bildens src
+                    const img = slideElement.querySelector('img');
+                    if (img) {
+                        img.src = altUrl;
+                        img.onerror = null; // Ta bort error handler
+                    }
+                    break;
+                }
+            }
+        }
+
+        // Kontrollera om en bild finns
+        async function checkImageExists(url) {
+            try {
+                const response = await fetch(url, { method: 'HEAD' });
+                return response.ok;
+            } catch (error) {
+                return false;
+            }
+        }
+
+        // Global felhanterare för bilder - UPPDATERAD VERSION
+        window.handleImageError = function(imgElement, filename, slideId) {
+            console.warn(`⚠️ Failed to load image: ${filename} (Slide ID: ${slideId})`);
+            
+            // Försök hitta slide-objektet
+            const slide = slides.find(s => s.id == slideId);
+            if (slide) {
+                console.log('Slide object:', slide);
+                
+                // Testa alternativa filnamn
+                const alternatives = [
+                    slide.originalname,
+                    slide.filename?.replace(/_\d+\./, '.'), // Ta bort timestamp
+                    `image_${slideId}.jpg`,
+                    'fallback.jpg'
+                ];
+                
+                // Testa varje alternativ
+                testImageAlternatives(imgElement, alternatives);
+            } else {
+                // Använd fallback
+                useFallbackImage(imgElement);
+            }
         };
+
+        // Testa alternativa bilder
+        function testImageAlternatives(imgElement, alternatives) {
+            let currentIndex = 0;
+            
+            function tryNextAlternative() {
+                if (currentIndex >= alternatives.length) {
+                    useFallbackImage(imgElement);
+                    return;
+                }
+                
+                const altFilename = alternatives[currentIndex];
+                if (!altFilename) {
+                    currentIndex++;
+                    tryNextAlternative();
+                    return;
+                }
+                
+                const altUrl = `/images/${encodeURIComponent(altFilename)}`;
+                console.log(`Trying alternative ${currentIndex + 1}: ${altUrl}`);
+                
+                const testImg = new Image();
+                testImg.onload = function() {
+                    console.log(`✅ Alternative works: ${altFilename}`);
+                    imgElement.src = altUrl;
+                    imgElement.onerror = null; // Ta bort error handler
+                };
+                
+                testImg.onerror = function() {
+                    console.log(`❌ Alternative failed: ${altFilename}`);
+                    currentIndex++;
+                    tryNextAlternative();
+                };
+                
+                testImg.src = altUrl;
+            }
+            
+            tryNextAlternative();
+        }
+
+        // Använd fallback-bild
+        function useFallbackImage(imgElement) {
+            console.log('Using fallback image');
+            imgElement.src = 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&h=1080&q=80';
+            imgElement.alt = 'Fallback bild - Själevads Bygg';
+            imgElement.style.objectFit = 'cover';
+            
+            // Eller visa en enkel fallback med CSS
+            imgElement.onerror = null;
+            imgElement.outerHTML = `
+                <div class="image-fallback">
+                    <i class="fas fa-image"></i>
+                    <h3>Själevads Bygg</h3>
+                    <p>Bilden "${imgElement.alt}" kunde inte laddas</p>
+                </div>
+            `;
+        }
 
         // Visa fallback vid allvarliga fel
         function showErrorFallback() {
@@ -531,9 +688,9 @@
             
             const nextIndex = (currentSlide + 1) % slides.length;
             const nextSlide = slides[nextIndex];
-            if (nextSlide) {
+            if (nextSlide && nextSlide.filename) {
                 const img = new Image();
-                img.src = `/images/${nextSlide.filename}`;
+                img.src = `/images/${encodeURIComponent(nextSlide.filename)}`;
             }
         }
 
@@ -790,27 +947,40 @@
         function debugImages() {
             console.log('=== DEBUG IMAGES ===');
             console.log('Slides array length:', slides.length);
-            console.log('Slides:', slides);
+            console.log('All slides:', slides);
             
-            if (slides && slides.length > 0) {
-                console.log('First slide:', slides[0]);
-                console.log('Expected URL:', `/images/${slides[0].filename}`);
+            // Testa varje bild
+            slides.forEach((slide, index) => {
+                const url = `/images/${encodeURIComponent(slide.filename || slide.originalname || '')}`;
+                console.log(`Slide ${index + 1}:`, {
+                    id: slide.id,
+                    filename: slide.filename,
+                    originalname: slide.originalname,
+                    url: url,
+                    title: slide.title
+                });
                 
-                // Testa att ladda första bilden
-                fetch(`/images/${slides[0].filename}`)
-                    .then(response => {
-                        console.log(`Image load test: ${response.status} ${response.statusText}`);
-                    })
-                    .catch(error => {
-                        console.error('Image load failed:', error);
-                    });
-            }
+                // Testa om bilden finns
+                checkImageExists(url).then(exists => {
+                    console.log(`  Image exists: ${exists ? '✅' : '❌'}`);
+                });
+            });
         }
 
         // Exponera viktiga funktioner globalt för debugging
         window.debugImages = debugImages;
         window.reloadSlides = loadSlides;
         window.getCurrentSlides = () => slides;
+        window.testImage = (filename) => {
+            const url = `/images/${encodeURIComponent(filename)}`;
+            checkImageExists(url).then(exists => {
+                console.log(`Image ${filename} exists:`, exists);
+                if (!exists) {
+                    console.log('Trying to open:', url);
+                    window.open(url, '_blank');
+                }
+            });
+        };
     </script>
 </body>
 </html>
