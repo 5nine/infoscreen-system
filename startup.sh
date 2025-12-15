@@ -17,8 +17,8 @@ sleep 3
 echo "🔍 Detecting displays..."
 
 # Metod 1: Kolla via tvservice
-HDMI_CONNECTED=$(tvservice -l 2>/dev/null | grep -c "HDMI")
-DSI_CONNECTED=$(tvservice -l 2>/dev/null | grep -c "DSI")
+HDMI_CONNECTED=$(tvservice -l 2>/dev/null | grep -c "HDMI-A-1")
+DSI_CONNECTED=$(tvservice -l 2>/dev/null | grep -c "DSI-1")
 
 echo "HDMI displays: $HDMI_CONNECTED"
 echo "DSI displays: $DSI_CONNECTED"
