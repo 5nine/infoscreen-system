@@ -76,7 +76,6 @@ BASE_FLAGS="
 --mute-audio
 --no-default-browser-check
 --no-pings
---no-zygote
 --password-store=basic
 --use-gl=swiftshader
 --use-mock-keychain
