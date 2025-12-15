@@ -62,7 +62,7 @@ install_dependencies() {
         apt install -y nodejs
     fi
     
-    apt install -y chromium-browser imagemagick git net-tools
+    apt install -y chromium imagemagick git net-tools
     print_success "Dependencies installed"
 }
 

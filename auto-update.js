@@ -14,7 +14,7 @@ const WebSocket = require('ws');
 class AutoUpdateSystem {
     constructor() {
         this.config = {
-            githubRepo: 'din-organisation/infoscreen-system',
+            githubRepo: '5nine/infoscreen-system',
             currentVersion: '1.0.0',
             updateChannel: 'stable',
             autoUpdate: true,
