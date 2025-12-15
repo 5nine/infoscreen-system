@@ -2,38 +2,58 @@
 <html lang="sv">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=800, height=1280">
+    <!-- ÄNDRA viewport för bättre touch-upplevelse -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Touch Kontroll - Själevads Bygg</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+        * { 
+            margin: 0; 
+            padding: 0; 
+            box-sizing: border-box; 
+            -webkit-tap-highlight-color: transparent; /* För touch */
+        }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #1a1a1a;
+            background: linear-gradient(135deg, #0d1b3e, #1e3c72);
             color: white;
-            width: 800px;
-            height: 1280px;
+            height: 100vh;
             overflow: hidden;
+            touch-action: manipulation; /* Förbättrar touch */
         }
-        .container { display: flex; flex-direction: column; height: 100%; }
+        .container { 
+            display: flex; 
+            flex-direction: column; 
+            height: 100vh;
+            padding: 10px;
+            gap: 10px;
+        }
         .header {
-            background: linear-gradient(135deg, #1e3c72, #2a5298);
-            padding: 20px 30px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
             text-align: center;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
         }
-        .header h1 { font-size: 32px; margin-bottom: 5px; }
+        .header h1 { 
+            font-size: clamp(24px, 5vw, 32px); 
+            margin-bottom: 5px; 
+        }
         .preview-section {
-            padding: 20px;
-            background: #2a2a2a;
-            border-bottom: 2px solid #3a3a3a;
+            flex: 1;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
         }
         .preview-container {
-            width: 100%;
-            height: 300px;
+            flex: 1;
             background: #000;
-            border-radius: 10px;
+            border-radius: 8px;
             overflow: hidden;
             position: relative;
+            margin-top: 10px;
         }
         #currentPreview {
             width: 100%;
@@ -41,64 +61,110 @@
             object-fit: contain;
         }
         .controls-section {
-            padding: 30px;
-            display: flex;
-            justify-content: space-around;
-            align-items: center;
-            background: #2a2a2a;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
         }
         .control-btn {
-            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
             border: none;
             color: white;
-            width: 120px;
-            height: 120px;
-            border-radius: 60px;
-            font-size: 48px;
+            height: 80px;
+            border-radius: 40px;
+            font-size: clamp(24px, 6vw, 32px);
             cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
         }
-        .control-btn.play-pause {
-            background: linear-gradient(135deg, #27ae60, #2ecc71);
-            width: 140px;
-            height: 140px;
+        .control-btn:active {
+            transform: scale(0.95);
+            opacity: 0.8;
+        }
+        .control-btn.prev {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+        }
+        .control-btn.next {
+            background: linear-gradient(135deg, #3498db, #2980b9);
         }
         .thumbnails-section {
-            flex: 1;
-            padding: 20px;
-            overflow-y: auto;
-            background: #1a1a1a;
+            flex: 2;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
         }
         .thumbnails-header {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 20px;
+            align-items: center;
+            margin-bottom: 15px;
         }
         .thumbnails-grid {
+            flex: 1;
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+            overflow-y: auto;
+            padding: 5px;
         }
         .thumbnail-item {
-            background: #2a2a2a;
-            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
             overflow: hidden;
             cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .thumbnail-item:active {
+            transform: scale(0.95);
+        }
+        .thumbnail-item.active {
+            box-shadow: 0 0 0 3px #2ecc71;
         }
         .thumbnail-img {
             width: 100%;
-            height: 150px;
+            height: 80px;
             object-fit: cover;
         }
-        .thumbnail-info { padding: 15px; }
+        .thumbnail-info { 
+            padding: 8px; 
+            font-size: 12px;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
         .footer {
-            background: #2a2a2a;
-            padding: 20px;
-            display: flex;
-            justify-content: space-between;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
             align-items: center;
         }
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #2ecc71;
+        }
+        .status-dot.disconnected {
+            background: #e74c3c;
+        }
+        .quick-actions {
+            display: flex;
+            gap: 10px;
+        }
         .action-btn {
-            background: #3a3a3a;
+            background: rgba(255, 255, 255, 0.2);
             border: none;
             color: white;
             width: 50px;
@@ -107,41 +173,75 @@
             font-size: 20px;
             cursor: pointer;
         }
+        .action-btn:active {
+            transform: scale(0.9);
+        }
+        
+        /* Media query för olika skärmstorlekar */
+        @media (min-height: 1000px) {
+            .control-btn {
+                height: 100px;
+                font-size: 36px;
+            }
+            .thumbnail-img {
+                height: 100px;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <header class="header">
             <h1>TOUCH KONTROLL</h1>
-            <p>Själevads Bygg Info Skärm</p>
+            <p>Själevads Bygg • Direktkontroll</p>
         </header>
 
         <section class="preview-section">
-            <div>Nuvarande Bild</div>
+            <div style="font-size: 14px; opacity: 0.8;">Nuvarande bild:</div>
             <div class="preview-container">
-                <img id="currentPreview" src="" alt="Bild">
+                <img id="currentPreview" src="" alt="Aktuell bild">
             </div>
+            <div style="margin-top: 10px; font-size: 16px; font-weight: bold;" id="previewTitle">Ingen bild vald</div>
+            <div style="font-size: 14px; opacity: 0.8;" id="previewDescription"></div>
         </section>
 
         <section class="controls-section">
-            <button class="control-btn" id="prevBtn"><i class="fas fa-backward"></i></button>
-            <button class="control-btn play-pause" id="playPauseBtn"><i class="fas fa-pause"></i></button>
-            <button class="control-btn" id="nextBtn"><i class="fas fa-forward"></i></button>
+            <button class="control-btn prev" id="prevBtn" aria-label="Föregående">
+                <i class="fas fa-backward"></i>
+            </button>
+            <button class="control-btn" id="playPauseBtn" aria-label="Pausa/Starta">
+                <i class="fas fa-pause"></i>
+            </button>
+            <button class="control-btn next" id="nextBtn" aria-label="Nästa">
+                <i class="fas fa-forward"></i>
+            </button>
         </section>
 
         <section class="thumbnails-section">
             <div class="thumbnails-header">
-                <h2>BILDER</h2>
-                <div id="slideCounter">0/0</div>
+                <h2 style="font-size: 18px;">BILDER (<span id="totalSlides">0</span>)</h2>
+                <div id="slideCounter" style="font-size: 16px; opacity: 0.8;">0/0</div>
             </div>
-            <div class="thumbnails-grid" id="thumbnailsGrid"></div>
+            <div class="thumbnails-grid" id="thumbnailsGrid">
+                <!-- Thumbnails läggs till här -->
+            </div>
         </section>
 
         <footer class="footer">
-            <div>Status: <span id="status">Ansluten</span></div>
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">Ansluter...</span>
+            </div>
             <div class="quick-actions">
-                <button class="action-btn" id="refreshBtn"><i class="fas fa-sync-alt"></i></button>
-                <button class="action-btn" id="adminBtn"><i class="fas fa-cog"></i></button>
+                <button class="action-btn" id="refreshBtn" aria-label="Uppdatera">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+                <button class="action-btn" id="adminBtn" aria-label="Admin">
+                    <i class="fas fa-cog"></i>
+                </button>
+                <button class="action-btn" id="fullscreenBtn" aria-label="Fullskärm">
+                    <i class="fas fa-expand"></i>
+                </button>
             </div>
         </footer>
     </div>
@@ -150,21 +250,35 @@
         let slides = [];
         let currentSlideIndex = 0;
         let ws = null;
+        let isPlaying = true;
 
         document.addEventListener('DOMContentLoaded', async () => {
+            console.log('👆 Touch Control starting...');
             await loadSlides();
             connectWebSocket();
             setupEventListeners();
+            setupTouchGestures();
+            
+            // Uppdatera status var 10:e sekund
+            setInterval(updateConnectionStatus, 10000);
         });
 
         async function loadSlides() {
             try {
+                console.log('🔄 Loading slides...');
                 const response = await fetch('/api/images');
+                if (!response.ok) throw new Error('API error');
+                
                 slides = await response.json();
+                console.log(`✅ Loaded ${slides.length} slide(s)`);
+                
                 updateThumbnails();
                 updatePreview();
+                updateCounter();
+                
             } catch (error) {
-                console.error('Failed to load slides:', error);
+                console.error('❌ Failed to load slides:', error);
+                showError('Kunde inte ladda bilder');
             }
         }
 
@@ -174,104 +288,294 @@
             
             slides.forEach((slide, index) => {
                 const thumbnail = document.createElement('div');
-                thumbnail.className = 'thumbnail-item';
+                thumbnail.className = `thumbnail-item ${index === currentSlideIndex ? 'active' : ''}`;
                 thumbnail.dataset.index = index;
                 
+                const thumbnailUrl = `/thumbnails/${encodeURIComponent(slide.filename)}`;
+                const fallbackUrl = 'https://via.placeholder.com/400x300/2a2a2a/ffffff?text=Thumb';
+                
                 thumbnail.innerHTML = `
-                    <img src="/thumbnails/${slide.filename}" class="thumbnail-img"
-                         onerror="this.src='https://via.placeholder.com/400x300/2a2a2a/ffffff'">
-                    <div class="thumbnail-info">${slide.title || 'Bild ' + (index + 1)}</div>
+                    <img src="${thumbnailUrl}" 
+                         class="thumbnail-img"
+                         alt="${slide.title || 'Bild ' + (index + 1)}"
+                         onerror="this.src='${fallbackUrl}'">
+                    <div class="thumbnail-info">
+                        ${(slide.title || 'Bild ' + (index + 1)).substring(0, 15)}
+                        ${(slide.title || '').length > 15 ? '...' : ''}
+                    </div>
                 `;
                 
                 thumbnail.addEventListener('click', () => selectSlide(index));
                 grid.appendChild(thumbnail);
             });
             
-            document.getElementById('slideCounter').textContent = 
-                `${currentSlideIndex + 1}/${slides.length}`;
+            document.getElementById('totalSlides').textContent = slides.length;
         }
 
         function updatePreview() {
-            if (slides.length === 0) return;
+            if (slides.length === 0) {
+                document.getElementById('currentPreview').src = 
+                    'https://via.placeholder.com/800x400/2a2a2a/ffffff?text=Ingen+bild';
+                document.getElementById('previewTitle').textContent = 'Ingen bild tillgänglig';
+                document.getElementById('previewDescription').textContent = 
+                    'Ladda upp bilder via admin-panelen';
+                return;
+            }
+            
             const slide = slides[currentSlideIndex];
-            document.getElementById('currentPreview').src = `/images/${slide.filename}`;
+            const previewImg = document.getElementById('currentPreview');
+            
+            // Använd direkt filnamn
+            const imageUrl = `/images/${encodeURIComponent(slide.filename)}`;
+            previewImg.src = imageUrl;
+            
+            previewImg.onerror = function() {
+                this.src = 'https://via.placeholder.com/800x400/2a2a2a/ffffff?text=Bild+ej+tillgänglig';
+            };
+            
+            document.getElementById('previewTitle').textContent = 
+                slide.title || 'Bild ' + (currentSlideIndex + 1);
+            document.getElementById('previewDescription').textContent = 
+                slide.description || '';
         }
 
         function selectSlide(index) {
+            if (index < 0 || index >= slides.length) return;
+            
             currentSlideIndex = index;
             updatePreview();
-            document.getElementById('slideCounter').textContent = 
-                `${currentSlideIndex + 1}/${slides.length}`;
+            updateCounter();
+            highlightActiveThumbnail();
             
+            // Skicka till TV-skärmen via WebSocket
             if (ws && ws.readyState === WebSocket.OPEN) {
                 ws.send(JSON.stringify({
                     type: 'navigate',
                     slideIndex: index
                 }));
+                console.log(`📤 Sent navigation to slide ${index + 1}`);
             }
         }
 
         function nextSlide() {
             if (slides.length <= 1) return;
-            currentSlideIndex = (currentSlideIndex + 1) % slides.length;
-            selectSlide(currentSlideIndex);
+            const newIndex = (currentSlideIndex + 1) % slides.length;
+            selectSlide(newIndex);
         }
 
         function prevSlide() {
             if (slides.length <= 1) return;
-            currentSlideIndex = (currentSlideIndex - 1 + slides.length) % slides.length;
-            selectSlide(currentSlideIndex);
+            const newIndex = (currentSlideIndex - 1 + slides.length) % slides.length;
+            selectSlide(newIndex);
+        }
+
+        function togglePlayPause() {
+            const button = document.getElementById('playPauseBtn');
+            const icon = button.querySelector('i');
+            
+            isPlaying = !isPlaying;
+            
+            if (isPlaying) {
+                icon.className = 'fas fa-pause';
+                button.setAttribute('aria-label', 'Pausa bildspel');
+            } else {
+                icon.className = 'fas fa-play';
+                button.setAttribute('aria-label', 'Starta bildspel');
+            }
+            
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'playPause',
+                    isPlaying: isPlaying
+                }));
+                console.log(`📤 Sent play/pause: ${isPlaying ? 'playing' : 'paused'}`);
+            }
         }
 
         function connectWebSocket() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            ws = new WebSocket(`${protocol}//${window.location.host}/ws-control`);
+            const wsUrl = `${protocol}//${window.location.hostname}:8082`;
+            
+            console.log(`🔗 Connecting to WebSocket: ${wsUrl}`);
+            ws = new WebSocket(wsUrl);
             
             ws.onopen = () => {
-                document.getElementById('status').textContent = 'Ansluten';
+                console.log('✅ WebSocket connected');
+                updateConnectionStatus(true);
+                
+                // Begär aktuell slide från TV-skärmen
+                ws.send(JSON.stringify({
+                    type: 'request-current'
+                }));
             };
             
             ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                if (data.type === 'current-slide' && data.slideIndex !== currentSlideIndex) {
-                    currentSlideIndex = data.slideIndex;
-                    updatePreview();
+                try {
+                    const data = JSON.parse(event.data);
+                    console.log('📥 WebSocket message:', data);
+                    
+                    switch (data.type) {
+                        case 'current-slide':
+                            if (data.slideIndex !== undefined && data.slideIndex !== currentSlideIndex) {
+                                currentSlideIndex = data.slideIndex;
+                                updatePreview();
+                                updateCounter();
+                                highlightActiveThumbnail();
+                            }
+                            break;
+                            
+                        case 'play-state':
+                            isPlaying = data.isPlaying;
+                            const button = document.getElementById('playPauseBtn');
+                            const icon = button.querySelector('i');
+                            icon.className = isPlaying ? 'fas fa-pause' : 'fas fa-play';
+                            break;
+                            
+                        case 'images-list':
+                            slides = data.images || [];
+                            updateThumbnails();
+                            updatePreview();
+                            updateCounter();
+                            break;
+                    }
+                } catch (error) {
+                    console.error('Error parsing WebSocket message:', error);
                 }
             };
             
             ws.onclose = () => {
-                document.getElementById('status').textContent = 'Ej ansluten';
+                console.log('❌ WebSocket disconnected');
+                updateConnectionStatus(false);
+                // Försök ansluta igen efter 3 sekunder
                 setTimeout(connectWebSocket, 3000);
             };
+            
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+                updateConnectionStatus(false);
+            };
+        }
+
+        function updateConnectionStatus(connected) {
+            const dot = document.getElementById('statusDot');
+            const text = document.getElementById('statusText');
+            
+            if (connected) {
+                dot.className = 'status-dot';
+                text.textContent = 'Ansluten';
+                text.style.color = '#2ecc71';
+            } else {
+                dot.className = 'status-dot disconnected';
+                text.textContent = 'Ej ansluten';
+                text.style.color = '#e74c3c';
+            }
+        }
+
+        function updateCounter() {
+            document.getElementById('slideCounter').textContent = 
+                `${currentSlideIndex + 1}/${slides.length}`;
+        }
+
+        function highlightActiveThumbnail() {
+            document.querySelectorAll('.thumbnail-item').forEach((item, index) => {
+                if (index === currentSlideIndex) {
+                    item.classList.add('active');
+                } else {
+                    item.classList.remove('active');
+                }
+            });
         }
 
         function setupEventListeners() {
             document.getElementById('prevBtn').addEventListener('click', prevSlide);
             document.getElementById('nextBtn').addEventListener('click', nextSlide);
-            document.getElementById('playPauseBtn').addEventListener('click', () => {
-                const button = document.getElementById('playPauseBtn');
-                const icon = button.querySelector('i');
-                const isPlaying = icon.className.includes('pause');
-                
-                if (isPlaying) {
-                    icon.className = 'fas fa-play';
-                } else {
-                    icon.className = 'fas fa-pause';
-                }
-                
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({
-                        type: 'playPause',
-                        isPlaying: !isPlaying
-                    }));
-                }
+            document.getElementById('playPauseBtn').addEventListener('click', togglePlayPause);
+            
+            document.getElementById('refreshBtn').addEventListener('click', () => {
+                loadSlides();
+                showToast('Uppdaterar bilder...');
             });
             
-            document.getElementById('refreshBtn').addEventListener('click', loadSlides);
             document.getElementById('adminBtn').addEventListener('click', () => {
                 window.open('/admin', '_blank');
             });
+            
+            document.getElementById('fullscreenBtn').addEventListener('click', () => {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(console.log);
+                } else {
+                    document.exitFullscreen();
+                }
+            });
+            
+            // Auto-refresh var 30:e sekund
+            setInterval(loadSlides, 30000);
         }
+
+        function setupTouchGestures() {
+            let touchStartX = 0;
+            
+            document.addEventListener('touchstart', (e) => {
+                touchStartX = e.touches[0].clientX;
+            }, { passive: true });
+            
+            document.addEventListener('touchend', (e) => {
+                const touchEndX = e.changedTouches[0].clientX;
+                const diff = touchStartX - touchEndX;
+                const threshold = 50;
+                
+                if (Math.abs(diff) > threshold) {
+                    if (diff > 0) {
+                        nextSlide(); // Swipe vänster -> nästa
+                    } else {
+                        prevSlide(); // Swipe höger -> föregående
+                    }
+                }
+            }, { passive: true });
+        }
+
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(0, 0, 0, 0.8);
+                color: white;
+                padding: 10px 20px;
+                border-radius: 20px;
+                z-index: 1000;
+                font-size: 14px;
+            `;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => toast.remove(), 2000);
+        }
+
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.innerHTML = `
+                <div style="position: fixed; top: 20px; left: 20px; right: 20px; 
+                           background: #e74c3c; color: white; padding: 15px; 
+                           border-radius: 10px; z-index: 1000; text-align: center;">
+                    <i class="fas fa-exclamation-triangle"></i> ${message}
+                </div>
+            `;
+            document.body.appendChild(errorDiv);
+            
+            setTimeout(() => errorDiv.remove(), 5000);
+        }
+
+        // Exponera funktioner för debugging
+        window.debugTouch = () => {
+            console.log('=== TOUCH CONTROL DEBUG ===');
+            console.log('Slides:', slides);
+            console.log('Current index:', currentSlideIndex);
+            console.log('WebSocket state:', ws ? ws.readyState : 'null');
+            console.log('Is playing:', isPlaying);
+        };
     </script>
 </body>
 </html>

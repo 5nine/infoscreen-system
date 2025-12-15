@@ -307,9 +307,22 @@ class InfoScreenServer {
             res.sendFile(path.join(__dirname, '..', 'public', 'update-manager.html'));
         });
         
-        this.app.get('*', (req, res) => {
-            res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
-        });
+		this.app.get('/', (req, res) => {
+			res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+		});
+
+		this.app.get('/touch-control', (req, res) => {
+			res.sendFile(path.join(__dirname, '..', 'public', 'touch-control.html'));
+		});
+
+		this.app.get('/admin', (req, res) => {
+			res.sendFile(path.join(__dirname, '..', 'public', 'admin.html'));
+		});
+
+		// Fallback för andra routes
+		this.app.get('*', (req, res) => {
+			res.redirect('/');
+		});
     }
     
     setupWebSocket() {
