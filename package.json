@@ -1,0 +1,62 @@
+{
+  "name": "infoscreen-sjalevadsbygg",
+  "version": "1.0.0",
+  "description": "Digital info screen system for Själevads Bygg",
+  "main": "server/webserver.js",
+  "scripts": {
+    "start": "node server/webserver.js",
+    "dev": "nodemon server/webserver.js",
+    "setup": "sudo bash install.sh",
+    "setup:remote": "sudo bash install-remote.sh",
+    "update": "node auto-update.js --check",
+    "update:force": "node auto-update.js --force",
+    "update:auto": "node auto-update.js --auto",
+    "backup": "node auto-update.js --backup",
+    "restore": "node auto-update.js --restore",
+    "restart": "sudo systemctl restart infoscreen",
+    "stop": "sudo systemctl stop infoscreen",
+    "status": "sudo systemctl status infoscreen",
+    "logs": "sudo journalctl -u infoscreen -f",
+    "monitor": "node system-monitor.js",
+    "diagnostics": "bash tools/diagnostics.sh",
+    "remote:setup": "bash tools/remote-access.sh",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "multer": "^1.4.5-lts.1",
+    "ws": "^8.13.0",
+    "node-cron": "^3.0.2",
+    "sharp": "^0.32.6",
+    "systeminformation": "^5.21.7",
+    "nodemailer": "^6.9.7",
+    "winston": "^3.11.0",
+    "winston-daily-rotate-file": "^4.7.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/din-organisation/infoscreen-system.git"
+  },
+  "keywords": [
+    "digital-signage",
+    "info-screen",
+    "raspberry-pi",
+    "touch-screen",
+    "auto-update",
+    "sjalevadsbygg"
+  ],
+  "author": "Själevads Bygg AB <it@sjalevadsbygg.se>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/din-organisation/infoscreen-system/issues"
+  },
+  "homepage": "https://github.com/din-organisation/infoscreen-system#readme",
+  "private": true
+}

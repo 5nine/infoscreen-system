@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Själevads Bygg</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+            padding: 30px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 { font-size: 32px; }
+        .action-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 50px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .main-content {
+            padding: 40px;
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 40px;
+        }
+        .upload-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+        }
+        .upload-area {
+            border: 3px dashed #1e3c72;
+            border-radius: 15px;
+            padding: 60px 40px;
+            text-align: center;
+            cursor: pointer;
+        }
+        .upload-btn {
+            background: #1e3c72;
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 50px;
+            cursor: pointer;
+        }
+        #fileInput { display: none; }
+        .images-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 20px;
+        }
+        .image-card {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .image-card img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+        }
+        .image-info { padding: 20px; }
+        .image-actions { display: flex; gap: 10px; margin-top: 10px; }
+        .image-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .sidebar { background: #f8f9fa; border-radius: 15px; padding: 30px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1><i class="fas fa-cogs"></i> Admin Panel - Bildhantering</h1>
+            <div>
+                <button class="action-btn" id="refreshBtn"><i class="fas fa-sync-alt"></i> Uppdatera</button>
+                <button class="action-btn" id="backBtn"><i class="fas fa-arrow-left"></i> Tillbaka</button>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="left-column">
+                <section class="upload-section">
+                    <h2><i class="fas fa-cloud-upload-alt"></i> Ladda upp bilder</h2>
+                    <div class="upload-area" id="uploadArea">
+                        <i class="fas fa-cloud-upload-alt" style="font-size: 64px; color: #1e3c72; margin-bottom: 20px;"></i>
+                        <h3>Drag & drop bilder här</h3>
+                        <p>eller klicka för att bläddra</p>
+                        <button class="upload-btn">Välj filer</button>
+                        <input type="file" id="fileInput" multiple accept="image/*">
+                    </div>
+                </section>
+
+                <section>
+                    <h2>Alla bilder (<span id="totalImages">0</span>)</h2>
+                    <div class="images-grid" id="imagesGrid">
+                        <!-- Images load here -->
+                    </div>
+                </section>
+            </div>
+
+            <aside class="sidebar">
+                <section style="margin-bottom: 40px;">
+                    <h3>Statistik</h3>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 20px;">
+                        <div style="background: white; padding: 20px; border-radius: 10px; text-align: center;">
+                            <div style="font-size: 32px; font-weight: bold; color: #1e3c72;" id="imagesCount">0</div>
+                            <div>Bilder</div>
+                        </div>
+                        <div style="background: white; padding: 20px; border-radius: 10px; text-align: center;">
+                            <div style="font-size: 32px; font-weight: bold; color: #1e3c72;" id="activeSlides">0</div>
+                            <div>Aktiva</div>
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <h3>Inställningar</h3>
+                    <div style="margin-top: 20px;">
+                        <label style="display: block; margin-bottom: 10px;">
+                            <input type="checkbox" id="autoSlide" checked> Automatisk bildväxling
+                        </label>
+                        <label style="display: block; margin-bottom: 10px;">
+                            <input type="number" id="slideInterval" value="10" min="5" max="60" style="width: 60px;"> sekunder
+                        </label>
+                    </div>
+                </section>
+            </aside>
+        </main>
+    </div>
+
+    <script>
+        let images = [];
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadImages();
+            setupEventListeners();
+        });
+
+        async function loadImages() {
+            try {
+                const response = await fetch('/api/images');
+                images = await response.json();
+                renderImages();
+                updateStats();
+            } catch (error) {
+                console.error('Failed to load images:', error);
+            }
+        }
+
+        function renderImages() {
+            const grid = document.getElementById('imagesGrid');
+            const total = document.getElementById('totalImages');
+            
+            grid.innerHTML = '';
+            
+            if (images.length === 0) {
+                grid.innerHTML = '<p>Inga bilder tillgängliga</p>';
+                total.textContent = '0';
+                return;
+            }
+            
+            images.forEach((image, index) => {
+                const card = document.createElement('div');
+                card.className = 'image-card';
+                card.dataset.id = image.id;
+                
+                card.innerHTML = `
+                    <img src="/images/${image.filename}" alt="${image.title}"
+                         onerror="this.src='https://via.placeholder.com/400x300/1e3c72/ffffff'">
+                    <div class="image-info">
+                        <h3>${image.title || 'Namnlös'}</h3>
+                        <div class="image-actions">
+                            <button class="image-btn" data-action="edit" style="background: #f0f7ff; color: #1e3c72;">
+                                <i class="fas fa-edit"></i> Redigera
+                            </button>
+                            <button class="image-btn" data-action="delete" style="background: #fff0f0; color: #e74c3c;">
+                                <i class="fas fa-trash"></i> Ta bort
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                grid.appendChild(card);
+            });
+            
+            total.textContent = images.length;
+        }
+
+        function updateStats() {
+            document.getElementById('imagesCount').textContent = images.length;
+            const active = images.filter(img => img.active !== false).length;
+            document.getElementById('activeSlides').textContent = active;
+        }
+
+        function setupEventListeners() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+            
+            uploadArea.addEventListener('click', () => fileInput.click());
+            
+            fileInput.addEventListener('change', async (e) => {
+                if (e.target.files.length === 0) return;
+                
+                const formData = new FormData();
+                for (const file of e.target.files) {
+                    formData.append('image', file);
+                }
+                
+                try {
+                    const response = await fetch('/api/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    if (response.ok) {
+                        await loadImages();
+                        alert(`${e.target.files.length} bilder uppladdade`);
+                        fileInput.value = '';
+                    } else {
+                        alert('Uppladdning misslyckades');
+                    }
+                } catch (error) {
+                    console.error('Upload error:', error);
+                    alert('Fel vid uppladdning');
+                }
+            });
+            
+            document.getElementById('refreshBtn').addEventListener('click', loadImages);
+            document.getElementById('backBtn').addEventListener('click', () => {
+                window.location.href = '/';
+            });
+            
+            // Event delegation for image actions
+            document.getElementById('imagesGrid').addEventListener('click', async (e) => {
+                const card = e.target.closest('.image-card');
+                if (!card) return;
+                
+                const actionBtn = e.target.closest('.image-btn');
+                if (!actionBtn) return;
+                
+                const imageId = card.dataset.id;
+                const action = actionBtn.dataset.action;
+                
+                const image = images.find(img => img.id == imageId);
+                if (!image) return;
+                
+                if (action === 'delete') {
+                    if (confirm('Ta bort denna bild?')) {
+                        try {
+                            await fetch(`/api/images/${imageId}`, { method: 'DELETE' });
+                            await loadImages();
+                        } catch (error) {
+                            alert('Kunde inte ta bort bilden');
+                        }
+                    }
+                } else if (action === 'edit') {
+                    // Simple edit - just prompt for new title
+                    const newTitle = prompt('Ny titel:', image.title || '');
+                    if (newTitle !== null) {
+                        try {
+                            await fetch(`/api/images/${imageId}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ title: newTitle })
+                            });
+                            await loadImages();
+                        } catch (error) {
+                            alert('Kunde inte uppdatera bilden');
+                        }
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

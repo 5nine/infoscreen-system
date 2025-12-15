@@ -3,13 +3,12 @@
 
 set -e
 
-# Colors for output
+# Colors
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Configuration
 INSTALL_DIR="/home/pi/infoscreen-system"
 SERVICE_NAME="infoscreen"
 USER="pi"
@@ -34,116 +33,70 @@ print_error() {
 
 check_root() {
     if [ "$EUID" -ne 0 ]; then 
-        print_error "Please run as root (use sudo)"
+        print_error "Run as root (use sudo)"
         exit 1
     fi
 }
 
 check_internet() {
-    print_step "Checking internet connection..."
+    print_step "Checking internet..."
     if ! ping -c 1 -W 5 google.com > /dev/null 2>&1; then
-        print_error "No internet connection. Please check your network."
+        print_error "No internet"
         exit 1
     fi
-    print_success "Internet connection OK"
+    print_success "Internet OK"
 }
 
 update_system() {
-    print_step "Updating system packages..."
+    print_step "Updating system..."
     apt update && apt upgrade -y
     print_success "System updated"
 }
 
 install_dependencies() {
-    print_step "Installing system dependencies..."
+    print_step "Installing dependencies..."
     
-    # Node.js 18+
     if ! command -v node &> /dev/null; then
-        print_step "Installing Node.js 18..."
+        print_step "Installing Node.js..."
         curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
         apt install -y nodejs
     fi
     
-    # Chromium for kiosk mode
-    apt install -y chromium-browser
-    
-    # ImageMagick for image processing
-    apt install -y imagemagick
-    
-    # Git for updates
-    apt install -y git
-    
-    # Network tools
-    apt install -y net-tools
-    
-    # Screen utilities
-    apt install -y x11-xserver-utils
-    
+    apt install -y chromium-browser imagemagick git net-tools
     print_success "Dependencies installed"
 }
 
 configure_system() {
     print_step "Configuring system..."
-    
-    # Disable screen blanking
     echo -e "\n# Disable screen blanking\nxset s off\nxset -dpms\nxset s noblank" >> /home/$USER/.bashrc
-    
-    # Disable unnecessary services
-    systemctl disable bluetooth > /dev/null 2>&1 || true
-    systemctl disable hciuart > /dev/null 2>&1 || true
-    systemctl disable triggerhappy > /dev/null 2>&1 || true
-    
-    # Set Swedish locale
-    locale-gen sv_SE.UTF-8
-    update-locale LANG=sv_SE.UTF-8
-    
     print_success "System configured"
 }
 
 setup_project() {
     print_step "Setting up project..."
-    
-    # Create necessary directories
-    mkdir -p $INSTALL_DIR/images
-    mkdir -p $INSTALL_DIR/thumbnails
-    mkdir -p $INSTALL_DIR/logs
-    mkdir -p $INSTALL_DIR/backups
-    
-    # Set proper permissions
+    mkdir -p $INSTALL_DIR/images $INSTALL_DIR/thumbnails $INSTALL_DIR/logs $INSTALL_DIR/backups
     chown -R $USER:$USER $INSTALL_DIR
     chmod 755 $INSTALL_DIR
-    
     print_success "Project directories created"
 }
 
 install_node_modules() {
-    print_step "Installing Node.js modules..."
-    
+    print_step "Installing Node modules..."
     cd $INSTALL_DIR
     sudo -u $USER npm install --production
-    
-    print_success "Node.js modules installed"
+    print_success "Node modules installed"
 }
 
 setup_service() {
-    print_step "Setting up system service..."
-    
-    # Copy service file
+    print_step "Setting up service..."
     cp $INSTALL_DIR/infoscreen.service /etc/systemd/system/
-    
-    # Reload systemd
     systemctl daemon-reload
-    
-    # Enable service
     systemctl enable $SERVICE_NAME
-    
-    print_success "System service configured"
+    print_success "Service configured"
 }
 
 configure_kiosk() {
-    print_step "Configuring kiosk mode..."
-    
-    # Create autostart script for kiosk mode
+    print_step "Configuring kiosk..."
     AUTOSTART_DIR="/home/$USER/.config/autostart"
     mkdir -p $AUTOSTART_DIR
     
@@ -157,13 +110,11 @@ X-GNOME-Autostart-enabled=true
 EOF
     
     chown -R $USER:$USER $AUTOSTART_DIR
-    
-    print_success "Kiosk mode configured"
+    print_success "Kiosk configured"
 }
 
 generate_ssl() {
-    print_step "Generating SSL certificates (for HTTPS)..."
-    
+    print_step "Generating SSL..."
     cd $INSTALL_DIR
     if [ ! -f "ssl/cert.pem" ] || [ ! -f "ssl/key.pem" ]; then
         mkdir -p ssl
@@ -171,58 +122,44 @@ generate_ssl() {
         chmod 600 ssl/*
         chown -R $USER:$USER ssl
     fi
-    
-    print_success "SSL certificates generated"
+    print_success "SSL generated"
 }
 
 post_install() {
-    print_step "Running post-installation tasks..."
-    
-    # Generate initial thumbnails
+    print_step "Post-install..."
     cd $INSTALL_DIR
     sudo -u $USER node server/thumbnail-generator.js
-    
-    # Start the service
     systemctl start $SERVICE_NAME
-    
-    # Wait a bit for service to start
     sleep 3
-    
-    print_success "Post-installation tasks completed"
+    print_success "Post-install done"
 }
 
 show_summary() {
     print_header "INSTALLATION COMPLETE"
     
-    # Get IP address
     IP_ADDRESS=$(hostname -I | awk '{print $1}')
     
-    echo -e "${GREEN}🎉 Själevads Bygg Info Screen System has been installed!${NC}"
+    echo -e "${GREEN}🎉 Själevads Bygg Info Screen System installed!${NC}"
     echo ""
     echo -e "${YELLOW}📡 Access URLs:${NC}"
     echo -e "  • Info Screen:      http://$IP_ADDRESS:8080"
     echo -e "  • Touch Control:    http://$IP_ADDRESS:8080/touch-control.html"
     echo -e "  • Admin Panel:      http://$IP_ADDRESS:8080/admin"
-    echo -e "  • Update Manager:   http://$IP_ADDRESS:8080/update-manager"
     echo ""
-    echo -e "${YELLOW}🔧 System Commands:${NC}"
-    echo -e "  • Start service:    sudo systemctl start $SERVICE_NAME"
-    echo -e "  • Stop service:     sudo systemctl stop $SERVICE_NAME"
-    echo -e "  • Check status:     sudo systemctl status $SERVICE_NAME"
-    echo -e "  • View logs:        sudo journalctl -u $SERVICE_NAME -f"
+    echo -e "${YELLOW}🔧 Commands:${NC}"
+    echo -e "  • Start:  sudo systemctl start $SERVICE_NAME"
+    echo -e "  • Stop:   sudo systemctl stop $SERVICE_NAME"
+    echo -e "  • Status: sudo systemctl status $SERVICE_NAME"
+    echo -e "  • Logs:   sudo journalctl -u $SERVICE_NAME -f"
     echo ""
-    echo -e "${YELLOW}📝 Next Steps:${NC}"
+    echo -e "${YELLOW}📝 Next:${NC}"
     echo -e "  1. Upload images to: $INSTALL_DIR/images/"
-    echo -e "  2. Configure weather API in: $INSTALL_DIR/config.json"
-    echo -e "  3. Add Google Calendar URL in config.json"
-    echo -e "  4. Reboot the system: sudo reboot"
-    echo ""
-    echo -e "${GREEN}Need help? Check the documentation in $INSTALL_DIR/docs/${NC}"
+    echo -e "  2. Configure config.json"
+    echo -e "  3. Reboot: sudo reboot"
 }
 
 main() {
     print_header "SJÄLEVADS BYGG INFO SCREEN INSTALLATION"
-    
     check_root
     check_internet
     update_system
@@ -237,5 +174,4 @@ main() {
     show_summary
 }
 
-# Run main function
 main

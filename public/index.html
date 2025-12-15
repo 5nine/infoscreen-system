@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=1920, height=1080">
+    <title>Själevads Bygg - Info Skärm</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f0f0;
+            color: #333;
+            overflow: hidden;
+            width: 1920px;
+            height: 1080px;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            grid-template-rows: 100px 1fr 100px;
+            width: 100%;
+            height: 100%;
+            background: white;
+        }
+        .header {
+            grid-column: 1 / -1;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 40px;
+        }
+        .logo-section { display: flex; align-items: center; gap: 20px; }
+        .logo { height: 70px; filter: brightness(0) invert(1); }
+        .company-info h1 { font-size: 28px; margin-bottom: 5px; }
+        .company-info p { font-size: 16px; opacity: 0.9; }
+        .datetime-section { text-align: right; }
+        #current-date { font-size: 24px; margin-bottom: 5px; }
+        #current-time { font-size: 32px; font-weight: 700; }
+        .main-content {
+            grid-column: 1;
+            grid-row: 2;
+            position: relative;
+            background: #000;
+        }
+        .slideshow-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        .slide {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            transition: opacity 1s;
+        }
+        .slide.active { opacity: 1; }
+        .slide-image {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        .slide-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+        }
+        .control-btn {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        .sidebar {
+            grid-column: 2;
+            grid-row: 2;
+            background: #f8f9fa;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+        .weather-section, .calendar-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+        }
+        .footer {
+            grid-column: 1 / -1;
+            background: #2c3e50;
+            color: white;
+            padding: 0 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .loading-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: #1e3c72;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+    </style>
+</head>
+<body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div style="color: white; font-size: 24px;">Startar system...</div>
+    </div>
+
+    <div class="container">
+        <header class="header">
+            <div class="logo-section">
+                <img src="logo.png" alt="Logo" class="logo" onerror="this.style.display='none'">
+                <div class="company-info">
+                    <h1>SJÄLEVADS BYGG AB</h1>
+                    <p>Kvalitet & Hållbarhet sedan 1995</p>
+                </div>
+            </div>
+            <div class="datetime-section">
+                <div id="current-date">lördag 16 december 2023</div>
+                <div id="current-time">14:30:45</div>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="slideshow-container" id="slideshowContainer"></div>
+            <div class="slide-controls">
+                <button class="control-btn" id="prevBtn"><i class="fas fa-chevron-left"></i></button>
+                <button class="control-btn" id="playPauseBtn"><i class="fas fa-pause"></i></button>
+                <button class="control-btn" id="nextBtn"><i class="fas fa-chevron-right"></i></button>
+            </div>
+        </main>
+
+        <aside class="sidebar">
+            <section class="weather-section">
+                <h2>Väder - Örnsköldsvik</h2>
+                <div id="weatherInfo">Laddar...</div>
+            </section>
+            <section class="calendar-section">
+                <h2>Kalender</h2>
+                <div id="calendarInfo">Laddar...</div>
+            </section>
+        </aside>
+
+        <footer class="footer">
+            <div>Uppdaterad: <span id="lastUpdate">Just nu</span></div>
+            <div>System: <span id="systemStatus">Online</span></div>
+        </footer>
+    </div>
+
+    <script>
+        let currentSlide = 0;
+        let slides = [];
+        let slideInterval;
+        let isPlaying = true;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('🚀 Starting...');
+            initDateTime();
+            await loadSlides();
+            initSlideshow();
+            loadWeather();
+            loadCalendar();
+            
+            setTimeout(() => {
+                document.getElementById('loadingOverlay').classList.add('hidden');
+            }, 1000);
+        });
+
+        function initDateTime() {
+            function update() {
+                const now = new Date();
+                const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                document.getElementById('current-date').textContent = 
+                    now.toLocaleDateString('sv-SE', dateOptions);
+                document.getElementById('current-time').textContent = 
+                    now.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            }
+            update();
+            setInterval(update, 1000);
+        }
+
+        async function loadSlides() {
+            try {
+                const response = await fetch('/api/images');
+                slides = await response.json();
+                
+                if (slides.length === 0) {
+                    slides = [{ filename: 'fallback.jpg', title: 'Välkommen' }];
+                }
+                
+                const container = document.getElementById('slideshowContainer');
+                slides.forEach((slide, index) => {
+                    const slideElement = document.createElement('div');
+                    slideElement.className = `slide ${index === 0 ? 'active' : ''}`;
+                    slideElement.innerHTML = `
+                        <img src="/images/${slide.filename}" alt="${slide.title}" class="slide-image"
+                             onerror="this.src='https://via.placeholder.com/1920x1080/1e3c72/ffffff?text=Sj%C3%A4levads+Bygg'">
+                    `;
+                    container.appendChild(slideElement);
+                });
+                
+            } catch (error) {
+                console.error('Failed to load slides:', error);
+            }
+        }
+
+        function initSlideshow() {
+            slideInterval = setInterval(nextSlide, 10000);
+            
+            document.getElementById('prevBtn').addEventListener('click', prevSlide);
+            document.getElementById('nextBtn').addEventListener('click', nextSlide);
+            document.getElementById('playPauseBtn').addEventListener('click', togglePlayPause);
+        }
+
+        function nextSlide() {
+            if (slides.length <= 1) return;
+            
+            document.querySelector('.slide.active').classList.remove('active');
+            currentSlide = (currentSlide + 1) % slides.length;
+            document.querySelectorAll('.slide')[currentSlide].classList.add('active');
+        }
+
+        function prevSlide() {
+            if (slides.length <= 1) return;
+            
+            document.querySelector('.slide.active').classList.remove('active');
+            currentSlide = (currentSlide - 1 + slides.length) % slides.length;
+            document.querySelectorAll('.slide')[currentSlide].classList.add('active');
+        }
+
+        function togglePlayPause() {
+            const button = document.getElementById('playPauseBtn');
+            const icon = button.querySelector('i');
+            
+            if (isPlaying) {
+                clearInterval(slideInterval);
+                icon.className = 'fas fa-play';
+            } else {
+                slideInterval = setInterval(nextSlide, 10000);
+                icon.className = 'fas fa-pause';
+            }
+            isPlaying = !isPlaying;
+        }
+
+        async function loadWeather() {
+            try {
+                const response = await fetch('/api/weather');
+                const data = await response.json();
+                document.getElementById('weatherInfo').innerHTML = `
+                    <div style="font-size: 48px; font-weight: bold;">${data.current.temp}°C</div>
+                    <div>${data.current.weather[0].description}</div>
+                `;
+            } catch (error) {
+                document.getElementById('weatherInfo').textContent = 'Ej tillgängligt';
+            }
+        }
+
+        async function loadCalendar() {
+            try {
+                const response = await fetch('/api/calendar');
+                const data = await response.json();
+                
+                if (data.events && data.events.length > 0) {
+                    let html = '<ul style="list-style: none; padding: 0;">';
+                    data.events.slice(0, 3).forEach(event => {
+                        const time = new Date(event.start).toLocaleTimeString('sv-SE', { 
+                            hour: '2-digit', minute: '2-digit' 
+                        });
+                        html += `<li style="margin-bottom: 10px;"><strong>${time}</strong> ${event.title}</li>`;
+                    });
+                    html += '</ul>';
+                    document.getElementById('calendarInfo').innerHTML = html;
+                } else {
+                    document.getElementById('calendarInfo').textContent = 'Inga händelser idag';
+                }
+            } catch (error) {
+                document.getElementById('calendarInfo').textContent = 'Ej tillgängligt';
+            }
+        }
+
+        // Update last update time
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('lastUpdate').textContent = 
+                now.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
+        }, 60000);
+    </script>
+</body>
+</html>

@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=800, height=1280">
+    <title>Touch Kontroll - Själevads Bygg</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            width: 800px;
+            height: 1280px;
+            overflow: hidden;
+        }
+        .container { display: flex; flex-direction: column; height: 100%; }
+        .header {
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            padding: 20px 30px;
+            text-align: center;
+        }
+        .header h1 { font-size: 32px; margin-bottom: 5px; }
+        .preview-section {
+            padding: 20px;
+            background: #2a2a2a;
+            border-bottom: 2px solid #3a3a3a;
+        }
+        .preview-container {
+            width: 100%;
+            height: 300px;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        #currentPreview {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .controls-section {
+            padding: 30px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            background: #2a2a2a;
+        }
+        .control-btn {
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            border: none;
+            color: white;
+            width: 120px;
+            height: 120px;
+            border-radius: 60px;
+            font-size: 48px;
+            cursor: pointer;
+        }
+        .control-btn.play-pause {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            width: 140px;
+            height: 140px;
+        }
+        .thumbnails-section {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #1a1a1a;
+        }
+        .thumbnails-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .thumbnails-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        .thumbnail-item {
+            background: #2a2a2a;
+            border-radius: 10px;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        .thumbnail-img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+        }
+        .thumbnail-info { padding: 15px; }
+        .footer {
+            background: #2a2a2a;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .action-btn {
+            background: #3a3a3a;
+            border: none;
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 25px;
+            font-size: 20px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>TOUCH KONTROLL</h1>
+            <p>Själevads Bygg Info Skärm</p>
+        </header>
+
+        <section class="preview-section">
+            <div>Nuvarande Bild</div>
+            <div class="preview-container">
+                <img id="currentPreview" src="" alt="Bild">
+            </div>
+        </section>
+
+        <section class="controls-section">
+            <button class="control-btn" id="prevBtn"><i class="fas fa-backward"></i></button>
+            <button class="control-btn play-pause" id="playPauseBtn"><i class="fas fa-pause"></i></button>
+            <button class="control-btn" id="nextBtn"><i class="fas fa-forward"></i></button>
+        </section>
+
+        <section class="thumbnails-section">
+            <div class="thumbnails-header">
+                <h2>BILDER</h2>
+                <div id="slideCounter">0/0</div>
+            </div>
+            <div class="thumbnails-grid" id="thumbnailsGrid"></div>
+        </section>
+
+        <footer class="footer">
+            <div>Status: <span id="status">Ansluten</span></div>
+            <div class="quick-actions">
+                <button class="action-btn" id="refreshBtn"><i class="fas fa-sync-alt"></i></button>
+                <button class="action-btn" id="adminBtn"><i class="fas fa-cog"></i></button>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        let slides = [];
+        let currentSlideIndex = 0;
+        let ws = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            await loadSlides();
+            connectWebSocket();
+            setupEventListeners();
+        });
+
+        async function loadSlides() {
+            try {
+                const response = await fetch('/api/images');
+                slides = await response.json();
+                updateThumbnails();
+                updatePreview();
+            } catch (error) {
+                console.error('Failed to load slides:', error);
+            }
+        }
+
+        function updateThumbnails() {
+            const grid = document.getElementById('thumbnailsGrid');
+            grid.innerHTML = '';
+            
+            slides.forEach((slide, index) => {
+                const thumbnail = document.createElement('div');
+                thumbnail.className = 'thumbnail-item';
+                thumbnail.dataset.index = index;
+                
+                thumbnail.innerHTML = `
+                    <img src="/thumbnails/${slide.filename}" class="thumbnail-img"
+                         onerror="this.src='https://via.placeholder.com/400x300/2a2a2a/ffffff'">
+                    <div class="thumbnail-info">${slide.title || 'Bild ' + (index + 1)}</div>
+                `;
+                
+                thumbnail.addEventListener('click', () => selectSlide(index));
+                grid.appendChild(thumbnail);
+            });
+            
+            document.getElementById('slideCounter').textContent = 
+                `${currentSlideIndex + 1}/${slides.length}`;
+        }
+
+        function updatePreview() {
+            if (slides.length === 0) return;
+            const slide = slides[currentSlideIndex];
+            document.getElementById('currentPreview').src = `/images/${slide.filename}`;
+        }
+
+        function selectSlide(index) {
+            currentSlideIndex = index;
+            updatePreview();
+            document.getElementById('slideCounter').textContent = 
+                `${currentSlideIndex + 1}/${slides.length}`;
+            
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'navigate',
+                    slideIndex: index
+                }));
+            }
+        }
+
+        function nextSlide() {
+            if (slides.length <= 1) return;
+            currentSlideIndex = (currentSlideIndex + 1) % slides.length;
+            selectSlide(currentSlideIndex);
+        }
+
+        function prevSlide() {
+            if (slides.length <= 1) return;
+            currentSlideIndex = (currentSlideIndex - 1 + slides.length) % slides.length;
+            selectSlide(currentSlideIndex);
+        }
+
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${window.location.host}/ws-control`);
+            
+            ws.onopen = () => {
+                document.getElementById('status').textContent = 'Ansluten';
+            };
+            
+            ws.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'current-slide' && data.slideIndex !== currentSlideIndex) {
+                    currentSlideIndex = data.slideIndex;
+                    updatePreview();
+                }
+            };
+            
+            ws.onclose = () => {
+                document.getElementById('status').textContent = 'Ej ansluten';
+                setTimeout(connectWebSocket, 3000);
+            };
+        }
+
+        function setupEventListeners() {
+            document.getElementById('prevBtn').addEventListener('click', prevSlide);
+            document.getElementById('nextBtn').addEventListener('click', nextSlide);
+            document.getElementById('playPauseBtn').addEventListener('click', () => {
+                const button = document.getElementById('playPauseBtn');
+                const icon = button.querySelector('i');
+                const isPlaying = icon.className.includes('pause');
+                
+                if (isPlaying) {
+                    icon.className = 'fas fa-play';
+                } else {
+                    icon.className = 'fas fa-pause';
+                }
+                
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                        type: 'playPause',
+                        isPlaying: !isPlaying
+                    }));
+                }
+            });
+            
+            document.getElementById('refreshBtn').addEventListener('click', loadSlides);
+            document.getElementById('adminBtn').addEventListener('click', () => {
+                window.open('/admin', '_blank');
+            });
+        }
+    </script>
+</body>
+</html>

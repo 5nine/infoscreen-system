@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+
+# Images and thumbnails
+images/*
+!images/.gitkeep
+thumbnails/*
+!thumbnails/.gitkeep
+
+# Logs
+logs/
+*.log
+
+# Backups
+backups/
+
+# SSL certificates
+ssl/
+
+# Environment variables
+.env
+.env.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.temp
+
+# System files
+infoscreen-system/.update/
