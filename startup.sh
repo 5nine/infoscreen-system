@@ -45,7 +45,7 @@ chromium \
     --disable-translate \
     --app="http://localhost:8080/" \
     --window-size=1920,1080 \
-    --display=HDMI-1 \
+    --display=HDMI-A-1 \
     --start-fullscreen &
 TV_PID=$!
 
