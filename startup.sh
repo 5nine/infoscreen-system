@@ -88,7 +88,7 @@ BASE_FLAGS="
 # Start TV Kiosk (Screen 0)
 echo "🖥️  Starting TV Kiosk on screen $TV_SCREEN..."
 TV_FLAGS="$BASE_FLAGS --app=$TV_URL --window-size=$TV_WIDTH,$TV_HEIGHT --window-position=0,0"
-DISPLAY=:0.$TV_SCREEN chromium-browser $TV_FLAGS &
+DISPLAY=:0.$TV_SCREEN chromium $TV_FLAGS &
 TV_PID=$!
 echo $TV_PID > /tmp/tv-kiosk.pid
 echo "✅ TV Chromium PID: $TV_PID"
@@ -98,7 +98,7 @@ sleep 2
 # Start Touch Kiosk (Screen 1)
 echo "📱 Starting Touch Kiosk on screen $TOUCH_SCREEN..."
 TOUCH_FLAGS="$BASE_FLAGS --app=$TOUCH_URL --window-size=$TOUCH_WIDTH,$TOUCH_HEIGHT --window-position=1920,0 --touch-events=enabled --enable-touch-drag-drop"
-DISPLAY=:0.$TOUCH_SCREEN chromium-browser $TOUCH_FLAGS &
+DISPLAY=:0.$TOUCH_SCREEN chromium $TOUCH_FLAGS &
 TOUCH_PID=$!
 echo $TOUCH_PID > /tmp/touch-kiosk.pid
 echo "✅ Touch Chromium PID: $TOUCH_PID"
@@ -112,14 +112,14 @@ echo "Touch:  $TOUCH_URL"
 while true; do
     if ! kill -0 $TV_PID 2>/dev/null; then
         echo "⚠️  TV Chromium died, restarting..."
-        DISPLAY=:0.$TV_SCREEN chromium-browser $TV_FLAGS &
+        DISPLAY=:0.$TV_SCREEN chromium $TV_FLAGS &
         TV_PID=$!
         echo $TV_PID > /tmp/tv-kiosk.pid
     fi
     
     if ! kill -0 $TOUCH_PID 2>/dev/null; then
         echo "⚠️  Touch Chromium died, restarting..."
-        DISPLAY=:0.$TOUCH_SCREEN chromium-browser $TOUCH_FLAGS &
+        DISPLAY=:0.$TOUCH_SCREEN chromium $TOUCH_FLAGS &
         TOUCH_PID=$!
         echo $TOUCH_PID > /tmp/touch-kiosk.pid
     fi
