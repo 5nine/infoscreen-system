@@ -75,20 +75,31 @@ class InfoScreenServer {
             }
         });
         
-        const upload = multer({
-            dest: path.join(__dirname, '..', 'images'),
-            limits: {
-                fileSize: this.config.images.maxFileSize || 5242880
-            },
-            fileFilter: (req, file, cb) => {
-                const ext = path.extname(file.originalname).toLowerCase();
-                if (this.config.images.allowedExtensions.includes(ext)) {
-                    cb(null, true);
-                } else {
-                    cb(new Error('Invalid file type'));
-                }
-            }
-        });
+		const upload = multer({
+			dest: path.join(__dirname, '..', 'images'),
+			limits: {
+				fileSize: this.config.images.maxFileSize || 5242880
+			},
+			fileFilter: (req, file, cb) => {
+				const ext = path.extname(file.originalname).toLowerCase();
+				if (this.config.images.allowedExtensions.includes(ext)) {
+					cb(null, true);
+				} else {
+					cb(new Error('Invalid file type'));
+				}
+			},
+			// LÄGG TILL DETTA för att behålla filnamn:
+			storage: multer.diskStorage({
+				destination: path.join(__dirname, '..', 'images'),
+				filename: (req, file, cb) => {
+					// Behåll originalnamnet, men lägg till timestamp för att undvika dubbletter
+					const timestamp = Date.now();
+					const name = path.parse(file.originalname).name;
+					const ext = path.extname(file.originalname);
+					cb(null, `${name}_${timestamp}${ext}`);
+				}
+			})
+		});
         
         this.app.post('/api/upload', upload.single('image'), async (req, res) => {
             try {
