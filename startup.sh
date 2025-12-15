@@ -13,7 +13,7 @@ sleep 5
 # Startar hela infoscreen-system på RPi
 
 # 1. Starta servern (i bakgrunden)
-cd ~/infoscreen-system
+cd ~/infoscreen-system/server
 node webserver.js &
 SERVER_PID=$!
 echo "✅ Server started (PID: $SERVER_PID)"
@@ -26,7 +26,7 @@ export DISPLAY=:0
 
 # 4. Starta touch på DSI-1 (touch-display)
 echo "👆 Starting touch control on DSI-1..."
-chromium-browser \
+chromium \
     --kiosk \
     --noerrdialogs \
     --disable-translate \
@@ -39,7 +39,7 @@ TOUCH_PID=$!
 # 5. Starta TV på HDMI-1 (om ansluten)
 sleep 2
 echo "🖥️  Starting TV display on HDMI-1..."
-chromium-browser \
+chromium \
     --kiosk \
     --noerrdialogs \
     --disable-translate \
