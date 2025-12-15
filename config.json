@@ -1,0 +1,69 @@
+{
+  "system": {
+    "name": "Själevads Bygg Info-Skärm",
+    "version": "1.0.0",
+    "port": 8080,
+    "host": "0.0.0.0",
+    "logLevel": "info"
+  },
+  "slideshow": {
+    "slideDuration": 10000,
+    "transitionDuration": 1000,
+    "autoPlay": true,
+    "shuffle": false,
+    "showInfo": true
+  },
+  "images": {
+    "directory": "./images",
+    "thumbnailsDirectory": "./thumbnails",
+    "maxFileSize": 5242880,
+    "allowedExtensions": [".jpg", ".jpeg", ".png", ".gif"],
+    "thumbnailWidth": 400,
+    "thumbnailHeight": 300,
+    "quality": 80
+  },
+  "weather": {
+    "enabled": true,
+    "apiKey": "DIN_OPENWEATHER_API_NYCKEL",
+    "city": "Örnsköldsvik",
+    "country": "SE",
+    "units": "metric",
+    "language": "se",
+    "updateInterval": 900000
+  },
+  "calendar": {
+    "enabled": true,
+    "calendarUrl": "https://calendar.google.com/calendar/ical/59bfca4dfcca0e5275aa45a91e517dd626a543eb10ef021f482ba7f3418b7a51%40group.calendar.google.com/public/basic.ics",
+    "updateInterval": 300000,
+    "maxEvents": 10
+  },
+  "update": {
+    "enabled": true,
+    "autoUpdate": true,
+    "checkInterval": 3600000,
+    "backupBeforeUpdate": true,
+    "notifyOnUpdate": true,
+    "githubRepo": "5nine/infoscreen-system",
+    "updateChannel": "stable"
+  },
+  "security": {
+    "adminPassword": "",
+    "enableAuth": false,
+    "allowedIPs": [],
+    "enableCORS": true
+  },
+  "display": {
+    "orientation": "portrait",
+    "touchEnabled": true,
+    "kioskMode": true,
+    "screenSaver": false
+  },
+  "notifications": {
+    "enabled": false,
+    "email": "",
+    "smtpServer": "",
+    "smtpPort": 587,
+    "smtpUser": "",
+    "smtpPass": ""
+  }
+}

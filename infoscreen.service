@@ -1,0 +1,27 @@
+[Unit]
+Description=Själevads Bygg Info Screen System
+After=network.target
+Wants=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/infoscreen-system
+ExecStart=/usr/bin/node /home/pi/infoscreen-system/server/webserver.js
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=infoscreen
+Environment=NODE_ENV=production
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/home/pi/infoscreen-system/images /home/pi/infoscreen-system/thumbnails /home/pi/infoscreen-system/logs /home/pi/infoscreen-system/backups
+PrivateTmp=true
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target
