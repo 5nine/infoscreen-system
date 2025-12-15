@@ -2,7 +2,7 @@
 <html lang="sv">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=1920, height=1080">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Själevads Bygg - Info Skärm</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -11,9 +11,9 @@
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: #f0f0f0;
             color: #333;
+            width: 100vw;
+            height: 100vh;
             overflow: hidden;
-            width: 1920px;
-            height: 1080px;
         }
         .container {
             display: grid;
@@ -22,6 +22,9 @@
             width: 100%;
             height: 100%;
             background: white;
+            max-width: 1920px;
+            max-height: 1080px;
+            margin: 0 auto;
         }
         .header {
             grid-column: 1 / -1;
@@ -55,13 +58,33 @@
             width: 100%;
             height: 100%;
             opacity: 0;
-            transition: opacity 1s;
+            transition: opacity 1s ease-in-out;
         }
         .slide.active { opacity: 1; }
         .slide-image {
-            max-width: 100%;
-            max-height: 100%;
+            width: 100%;
+            height: 100%;
             object-fit: contain;
+            display: block;
+        }
+        .slide-info {
+            position: absolute;
+            bottom: 80px;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            padding: 20px 40px;
+            text-align: center;
+        }
+        .slide-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .slide-description {
+            font-size: 18px;
+            opacity: 0.9;
         }
         .slide-controls {
             position: absolute;
@@ -70,9 +93,13 @@
             transform: translateX(-50%);
             display: flex;
             gap: 10px;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            border-radius: 50px;
         }
         .control-btn {
-            background: rgba(255,255,255,0.2);
+            background: rgba(255, 255, 255, 0.2);
             border: none;
             color: white;
             width: 50px;
@@ -80,6 +107,19 @@
             border-radius: 50%;
             font-size: 24px;
             cursor: pointer;
+            transition: background 0.3s;
+        }
+        .control-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        #slideCounter {
+            color: white;
+            margin: 0 15px;
+            display: flex;
+            align-items: center;
+            font-size: 20px;
+            min-width: 80px;
+            justify-content: center;
         }
         .sidebar {
             grid-column: 2;
@@ -89,11 +129,20 @@
             display: flex;
             flex-direction: column;
             gap: 30px;
+            overflow-y: auto;
         }
         .weather-section, .calendar-section {
             background: white;
             border-radius: 15px;
             padding: 25px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .weather-section h2, .calendar-section h2 {
+            margin-bottom: 20px;
+            color: #1e3c72;
+            font-size: 22px;
+            border-bottom: 2px solid #f0f0f0;
+            padding-bottom: 10px;
         }
         .footer {
             grid-column: 1 / -1;
@@ -103,30 +152,81 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
+            font-size: 16px;
         }
         .loading-overlay {
             position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
+            top: 0; 
+            left: 0;
+            width: 100%; 
+            height: 100%;
             background: #1e3c72;
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             z-index: 9999;
+            transition: opacity 0.5s ease-in-out;
         }
-        .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+        .loading-overlay.hidden { 
+            opacity: 0; 
+            pointer-events: none; 
+        }
+        .loading-spinner {
+            width: 60px;
+            height: 60px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .error-message {
+            background: #ff6b6b;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin: 10px 0;
+            display: none;
+        }
+        .error-message.show {
+            display: block;
+        }
+        .no-images {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background: #1e3c72;
+            color: white;
+            text-align: center;
+            padding: 40px;
+        }
+        .no-images h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+        }
+        .no-images p {
+            font-size: 20px;
+            opacity: 0.9;
+        }
     </style>
 </head>
 <body>
     <div class="loading-overlay" id="loadingOverlay">
-        <div style="color: white; font-size: 24px;">Startar system...</div>
+        <div class="loading-spinner"></div>
+        <div style="color: white; font-size: 24px; margin-top: 20px;">Startar system...</div>
     </div>
 
     <div class="container">
         <header class="header">
             <div class="logo-section">
-                <img src="logo.png" alt="Logo" class="logo" onerror="this.style.display='none'">
+                <img src="logo.png" alt="Själevads Bygg Logo" class="logo" onerror="this.style.display='none'">
                 <div class="company-info">
                     <h1>SJÄLEVADS BYGG AB</h1>
                     <p>Kvalitet & Hållbarhet sedan 1995</p>
@@ -139,194 +239,413 @@
         </header>
 
         <main class="main-content">
-            <div class="slideshow-container" id="slideshowContainer"></div>
+            <div class="slideshow-container" id="slideshowContainer">
+                <!-- Slides kommer att genereras här av JavaScript -->
+            </div>
             <div class="slide-controls">
-                <button class="control-btn" id="prevBtn"><i class="fas fa-chevron-left"></i></button>
-                <button class="control-btn" id="playPauseBtn"><i class="fas fa-pause"></i></button>
-                <button class="control-btn" id="nextBtn"><i class="fas fa-chevron-right"></i></button>
+                <button class="control-btn" id="prevBtn" aria-label="Föregående bild">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                
+                <div id="slideCounter">
+                    <span id="currentSlide">1</span> / <span id="totalSlides">0</span>
+                </div>
+                
+                <button class="control-btn" id="playPauseBtn" aria-label="Pausa/starta bildspel">
+                    <i class="fas fa-pause"></i>
+                </button>
+                
+                <button class="control-btn" id="nextBtn" aria-label="Nästa bild">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
             </div>
         </main>
 
         <aside class="sidebar">
             <section class="weather-section">
                 <h2>Väder - Örnsköldsvik</h2>
-                <div id="weatherInfo">Laddar...</div>
+                <div id="weatherInfo">Laddar väderinformation...</div>
             </section>
             <section class="calendar-section">
                 <h2>Kalender</h2>
-                <div id="calendarInfo">Laddar...</div>
+                <div id="calendarInfo">Laddar kalenderhändelser...</div>
             </section>
         </aside>
 
         <footer class="footer">
             <div>Uppdaterad: <span id="lastUpdate">Just nu</span></div>
-            <div>System: <span id="systemStatus">Online</span></div>
+            <div>Systemstatus: <span id="systemStatus" style="color: #4CAF50;">● Online</span></div>
         </footer>
     </div>
 
     <script>
+        // Globala variabler
         let currentSlide = 0;
         let slides = [];
         let slideInterval;
         let isPlaying = true;
+        let isLoading = false;
 
+        // Vänta på att DOM ska laddas
         document.addEventListener('DOMContentLoaded', async () => {
-            console.log('🚀 Starting...');
+            console.log('🚀 Starting Själevads Bygg Info Screen...');
+            
+            // Initiera alla komponenter
             initDateTime();
             await loadSlides();
             initSlideshow();
             loadWeather();
             loadCalendar();
             
+            // Dölj laddningsskärmen efter 1 sekund
             setTimeout(() => {
                 document.getElementById('loadingOverlay').classList.add('hidden');
             }, 1000);
+            
+            // Uppdatera sist uppdaterad-tid varje minut
+            setInterval(updateLastUpdateTime, 60000);
+            
+            // Auto-refresh om inga bilder visas
+            setTimeout(() => {
+                if (slides.length === 0 && !isLoading) {
+                    console.log('🔄 No images found, attempting refresh...');
+                    loadSlides();
+                }
+            }, 10000);
         });
 
+        // Funktion för att initiera datum och tid
         function initDateTime() {
-            function update() {
+            function updateDateTime() {
                 const now = new Date();
-                const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                const dateOptions = { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                };
+                
+                // Uppdatera datum
                 document.getElementById('current-date').textContent = 
                     now.toLocaleDateString('sv-SE', dateOptions);
+                
+                // Uppdatera tid
                 document.getElementById('current-time').textContent = 
-                    now.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    now.toLocaleTimeString('sv-SE', { 
+                        hour: '2-digit', 
+                        minute: '2-digit', 
+                        second: '2-digit' 
+                    });
             }
-            update();
-            setInterval(update, 1000);
+            
+            // Uppdatera direkt och sedan varje sekund
+            updateDateTime();
+            setInterval(updateDateTime, 1000);
         }
 
-		async function loadSlides() {
-			try {
-				console.log('📸 Loading images...');
-				const response = await fetch('/api/images');
-				
-				if (!response.ok) {
-					throw new Error(`API error: ${response.status}`);
-				}
-				
-				slides = await response.json();
-				console.log(`✅ Loaded ${slides.length} image(s) from API`);
-				
-				if (slides.length === 0) {
-					console.warn('⚠️ No images in database, checking images folder...');
-					
-					// Fallback: Visa bilder direkt från images-mappen
-					try {
-						const imagesResponse = await fetch('/api/images-direct');
-						const images = await imagesResponse.json();
-						
-						slides = images.map((filename, index) => ({
-							id: index + 1,
-							filename: filename,
-							title: filename.replace(/\.[^/.]+$/, ""), // Ta bort filändelse
-							description: '',
-							order: index + 1,
-							active: true
-						}));
-						
-						console.log(`📁 Found ${slides.length} image(s) in folder`);
-					} catch (folderError) {
-						console.warn('Using hardcoded fallback');
-						slides = [
-							{ 
-								id: 1, 
-								filename: 'fallback.jpg', 
-								title: 'Välkommen till Själevads Bygg', 
-								description: 'Ladda upp bilder i admin panelen' 
-							}
-						];
-					}
-				}
-				
-				// Render slides
-				renderSlides();
-				updateSlideCounter();
-				
-			} catch (error) {
-				console.error('❌ Failed to load slides:', error);
-				showErrorFallback();
-			}
-		}
-
-		function renderSlides() {
-			const container = document.getElementById('slideshowContainer');
-			container.innerHTML = '';
-			
-			slides.forEach((slide, index) => {
-				const slideElement = document.createElement('div');
-				slideElement.className = `slide ${index === 0 ? 'active' : ''}`;
-				slideElement.dataset.index = index;
-				
-				// Bygg bild-URL: använd direkt filnamn från API
-				const imageUrl = `/images/${slide.filename}`;
-				
-				slideElement.innerHTML = `
-					<img src="${imageUrl}" 
-						 alt="${slide.title || 'Bild'}" 
-						 class="slide-image"
-						 loading="lazy"
-						 onerror="handleImageError(this, '${slide.filename}')">
-					<div class="slide-info">
-						<div class="slide-title">${slide.title || 'Bild ' + (index + 1)}</div>
-						<div class="slide-description">${slide.description || ''}</div>
-					</div>
-				`;
-				
-				container.appendChild(slideElement);
-			});
-		}
-
-		function handleImageError(imgElement, filename) {
-			console.warn(`⚠️ Failed to load: ${filename}`);
-			imgElement.src = 'https://via.placeholder.com/1920x1080/1e3c72/ffffff?text=Sj%C3%A4levads+Bygg';
-			imgElement.alt = 'Bild kunde inte laddas';
-		}
-
-		function showErrorFallback() {
-			const container = document.getElementById('slideshowContainer');
-			container.innerHTML = `
-				<div class="slide active">
-					<div style="width:100%;height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;background:#1e3c72;color:white;">
-						<h1 style="font-size:48px;margin-bottom:20px;">Själevads Bygg</h1>
-						<p style="font-size:24px;">Info-skärm systemet</p>
-						<p style="margin-top:20px;font-size:18px;color:#ccc;">Kontrollera att servern körs</p>
-					</div>
-				</div>
-			`;
-			document.getElementById('currentSlide').textContent = '1';
-			document.getElementById('totalSlides').textContent = '1';
-		}
-
-		function updateSlideCounter() {
-			document.getElementById('currentSlide').textContent = '1';
-			document.getElementById('totalSlides').textContent = slides.length;
-		}
-
-        function initSlideshow() {
-            slideInterval = setInterval(nextSlide, 10000);
+        // Ladda bilder från API
+        async function loadSlides() {
+            if (isLoading) return;
             
+            isLoading = true;
+            try {
+                console.log('📸 Loading images from API...');
+                
+                // Försök hämta bilder från API:et
+                const response = await fetch('/api/images');
+                
+                if (!response.ok) {
+                    throw new Error(`API error: ${response.status} ${response.statusText}`);
+                }
+                
+                slides = await response.json();
+                console.log(`✅ Loaded ${slides.length} image(s) from API`);
+                
+                // Om inga bilder i databasen, kolla i mappen
+                if (slides.length === 0) {
+                    console.warn('⚠️ No images in database, checking images folder...');
+                    await loadImagesFromFolder();
+                }
+                
+                // Rendera bilderna
+                renderSlides();
+                
+                // Uppdatera slide counter
+                updateSlideCounter();
+                
+                // Förhandsload nästa bild för bättre prestanda
+                preloadNextImage();
+                
+            } catch (error) {
+                console.error('❌ Failed to load slides:', error);
+                showErrorFallback();
+            } finally {
+                isLoading = false;
+            }
+        }
+
+        // Ladda bilder från mappen som fallback
+        async function loadImagesFromFolder() {
+            try {
+                const response = await fetch('/api/images-direct');
+                if (!response.ok) throw new Error('Folder API failed');
+                
+                const images = await response.json();
+                
+                // Skapa slide-objekt från filnamnen
+                slides = images
+                    .filter(filename => /\.(jpg|jpeg|png|gif|webp)$/i.test(filename))
+                    .map((filename, index) => ({
+                        id: index + 1,
+                        filename: filename,
+                        title: filename.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "),
+                        description: '',
+                        order: index + 1,
+                        active: true
+                    }));
+                
+                console.log(`📁 Found ${slides.length} image(s) in folder`);
+                
+            } catch (folderError) {
+                console.warn('📂 Using hardcoded fallback images');
+                slides = [
+                    { 
+                        id: 1, 
+                        filename: 'fallback.jpg', 
+                        title: 'Välkommen till Själevads Bygg', 
+                        description: 'Info-skärm systemet är klart för användning' 
+                    },
+                    { 
+                        id: 2, 
+                        filename: 'construction.jpg', 
+                        title: 'Byggarbeten pågår', 
+                        description: 'Vi bygger för framtiden' 
+                    }
+                ];
+            }
+        }
+
+        // Rendera alla slides i DOM
+        function renderSlides() {
+            const container = document.getElementById('slideshowContainer');
+            
+            // Töm containern först
+            container.innerHTML = '';
+            
+            // Om inga bilder, visa meddelande
+            if (slides.length === 0) {
+                container.innerHTML = `
+                    <div class="no-images">
+                        <h2>Inga bilder tillgängliga</h2>
+                        <p>Ladda upp bilder via admin-panelen för att börja använda info-skärmen</p>
+                        <p style="margin-top: 20px; font-size: 16px;">
+                            <i class="fas fa-info-circle"></i> 
+                            Kontrollera att servern är igång och att bilder finns i /images-mappen
+                        </p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Skapa slide-element för varje bild
+            slides.forEach((slide, index) => {
+                const slideElement = document.createElement('div');
+                slideElement.className = `slide ${index === 0 ? 'active' : ''}`;
+                slideElement.dataset.index = index;
+                slideElement.setAttribute('aria-hidden', index !== 0);
+                slideElement.setAttribute('aria-label', `Bild ${index + 1}: ${slide.title || ''}`);
+                
+                // Bygg bild-URL
+                const imageUrl = `/images/${encodeURIComponent(slide.filename)}`;
+                
+                // Skapa slide-innehåll
+                slideElement.innerHTML = `
+                    <img src="${imageUrl}" 
+                         alt="${slide.title || 'Bild ' + (index + 1)}" 
+                         class="slide-image"
+                         loading="${index === 0 ? 'eager' : 'lazy'}"
+                         onerror="handleImageError(this, '${slide.filename.replace(/'/g, "\\'")}')">
+                    
+                    ${slide.title || slide.description ? `
+                    <div class="slide-info" aria-live="polite" aria-atomic="true">
+                        ${slide.title ? `<div class="slide-title">${slide.title}</div>` : ''}
+                        ${slide.description ? `<div class="slide-description">${slide.description}</div>` : ''}
+                    </div>
+                    ` : ''}
+                `;
+                
+                container.appendChild(slideElement);
+            });
+        }
+
+        // Global felhanterare för bilder
+        window.handleImageError = function(imgElement, filename) {
+            console.warn(`⚠️ Failed to load image: ${filename}`);
+            imgElement.src = 'https://via.placeholder.com/1920x1080/1e3c72/ffffff?text=Sj%C3%A4levads+Bygg';
+            imgElement.alt = 'Bild kunde inte laddas';
+            imgElement.style.objectFit = 'cover';
+        };
+
+        // Visa fallback vid allvarliga fel
+        function showErrorFallback() {
+            const container = document.getElementById('slideshowContainer');
+            container.innerHTML = `
+                <div class="slide active">
+                    <div class="no-images">
+                        <h1>Själevads Bygg Info-Skärm</h1>
+                        <p>Systemfel: Kunde inte ladda bilder</p>
+                        <p style="margin-top: 20px; font-size: 16px;">
+                            <i class="fas fa-exclamation-triangle"></i> 
+                            Kontrollera att servern körs och att API:et är tillgängligt
+                        </p>
+                        <button onclick="location.reload()" 
+                                style="margin-top: 30px; padding: 10px 20px; background: white; color: #1e3c72; border: none; border-radius: 5px; cursor: pointer;">
+                            <i class="fas fa-redo"></i> Försök igen
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // Uppdatera slide counter för felmeddelande
+            document.getElementById('currentSlide').textContent = '1';
+            document.getElementById('totalSlides').textContent = '1';
+        }
+
+        // Uppdatera slide counter
+        function updateSlideCounter() {
+            const currentEl = document.getElementById('currentSlide');
+            const totalEl = document.getElementById('totalSlides');
+            
+            if (!currentEl || !totalEl) {
+                console.warn('Slide counter elements not found');
+                return;
+            }
+            
+            currentEl.textContent = (currentSlide + 1).toString();
+            totalEl.textContent = slides.length.toString();
+        }
+
+        // Förhandsload nästa bild
+        function preloadNextImage() {
+            if (slides.length <= 1) return;
+            
+            const nextIndex = (currentSlide + 1) % slides.length;
+            const nextSlide = slides[nextIndex];
+            if (nextSlide) {
+                const img = new Image();
+                img.src = `/images/${nextSlide.filename}`;
+            }
+        }
+
+        // Initiera bildspelet
+        function initSlideshow() {
+            // Starta auto-rotation (10 sekunder per bild)
+            if (slides.length > 1) {
+                slideInterval = setInterval(nextSlide, 10000);
+            }
+            
+            // Lägg till event listeners för knappar
             document.getElementById('prevBtn').addEventListener('click', prevSlide);
             document.getElementById('nextBtn').addEventListener('click', nextSlide);
             document.getElementById('playPauseBtn').addEventListener('click', togglePlayPause);
+            
+            // Lägg till tangentbordsnavigation
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'ArrowLeft') prevSlide();
+                if (e.key === 'ArrowRight') nextSlide();
+                if (e.key === ' ' || e.key === 'Spacebar') {
+                    e.preventDefault();
+                    togglePlayPause();
+                }
+            });
+            
+            // Touch events för mobila enheter
+            let touchStartX = 0;
+            let touchEndX = 0;
+            
+            document.querySelector('.main-content').addEventListener('touchstart', (e) => {
+                touchStartX = e.changedTouches[0].screenX;
+            }, { passive: true });
+            
+            document.querySelector('.main-content').addEventListener('touchend', (e) => {
+                touchEndX = e.changedTouches[0].screenX;
+                handleSwipe();
+            }, { passive: true });
+            
+            function handleSwipe() {
+                const swipeThreshold = 50;
+                const diff = touchStartX - touchEndX;
+                
+                if (Math.abs(diff) > swipeThreshold) {
+                    if (diff > 0) {
+                        nextSlide(); // Swipe vänster -> nästa
+                    } else {
+                        prevSlide(); // Swipe höger -> föregående
+                    }
+                }
+            }
         }
 
+        // Gå till nästa bild
         function nextSlide() {
             if (slides.length <= 1) return;
             
-            document.querySelector('.slide.active').classList.remove('active');
+            // Dölj nuvarande slide
+            const currentSlideElement = document.querySelector('.slide.active');
+            if (currentSlideElement) {
+                currentSlideElement.classList.remove('active');
+                currentSlideElement.setAttribute('aria-hidden', 'true');
+            }
+            
+            // Uppdatera index
             currentSlide = (currentSlide + 1) % slides.length;
-            document.querySelectorAll('.slide')[currentSlide].classList.add('active');
+            
+            // Visa nästa slide
+            const nextSlideElement = document.querySelectorAll('.slide')[currentSlide];
+            if (nextSlideElement) {
+                nextSlideElement.classList.add('active');
+                nextSlideElement.setAttribute('aria-hidden', 'false');
+                
+                // Scrolla info-texten till synlig position
+                const slideInfo = nextSlideElement.querySelector('.slide-info');
+                if (slideInfo) {
+                    slideInfo.scrollIntoView({ behavior: 'smooth', block: 'end' });
+                }
+            }
+            
+            // Uppdatera counter
+            updateSlideCounter();
+            
+            // Förhandsload nästa-nästa bild
+            preloadNextImage();
         }
 
+        // Gå till föregående bild
         function prevSlide() {
             if (slides.length <= 1) return;
             
-            document.querySelector('.slide.active').classList.remove('active');
+            // Dölj nuvarande slide
+            const currentSlideElement = document.querySelector('.slide.active');
+            if (currentSlideElement) {
+                currentSlideElement.classList.remove('active');
+                currentSlideElement.setAttribute('aria-hidden', 'true');
+            }
+            
+            // Uppdatera index
             currentSlide = (currentSlide - 1 + slides.length) % slides.length;
-            document.querySelectorAll('.slide')[currentSlide].classList.add('active');
+            
+            // Visa föregående slide
+            const prevSlideElement = document.querySelectorAll('.slide')[currentSlide];
+            if (prevSlideElement) {
+                prevSlideElement.classList.add('active');
+                prevSlideElement.setAttribute('aria-hidden', 'false');
+            }
+            
+            // Uppdatera counter
+            updateSlideCounter();
         }
 
+        // Pausa/starta bildspelet
         function togglePlayPause() {
             const button = document.getElementById('playPauseBtn');
             const icon = button.querySelector('i');
@@ -334,85 +653,164 @@
             if (isPlaying) {
                 clearInterval(slideInterval);
                 icon.className = 'fas fa-play';
+                button.setAttribute('aria-label', 'Starta bildspel');
             } else {
                 slideInterval = setInterval(nextSlide, 10000);
                 icon.className = 'fas fa-pause';
+                button.setAttribute('aria-label', 'Pausa bildspel');
             }
+            
             isPlaying = !isPlaying;
         }
 
+        // Ladda väderinformation
         async function loadWeather() {
             try {
                 const response = await fetch('/api/weather');
+                if (!response.ok) throw new Error('Weather API failed');
+                
                 const data = await response.json();
-                document.getElementById('weatherInfo').innerHTML = `
-                    <div style="font-size: 48px; font-weight: bold;">${data.current.temp}°C</div>
-                    <div>${data.current.weather[0].description}</div>
-                `;
+                
+                let weatherHTML = '';
+                if (data.current && data.current.temp !== undefined) {
+                    const temp = Math.round(data.current.temp);
+                    const description = data.current.weather[0]?.description || '';
+                    const icon = getWeatherIcon(data.current.weather[0]?.main);
+                    
+                    weatherHTML = `
+                        <div style="display: flex; align-items: center; gap: 20px;">
+                            <div style="font-size: 48px;">${icon}</div>
+                            <div>
+                                <div style="font-size: 48px; font-weight: bold;">${temp}°C</div>
+                                <div style="font-size: 18px; text-transform: capitalize;">${description}</div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 15px; font-size: 14px; color: #666;">
+                            <i class="fas fa-wind"></i> Vind: ${data.current.wind_speed || 0} m/s
+                        </div>
+                    `;
+                } else {
+                    weatherHTML = '<p>Väderinformation ej tillgänglig</p>';
+                }
+                
+                document.getElementById('weatherInfo').innerHTML = weatherHTML;
+                
             } catch (error) {
-                document.getElementById('weatherInfo').textContent = 'Ej tillgängligt';
+                console.error('❌ Failed to load weather:', error);
+                document.getElementById('weatherInfo').innerHTML = `
+                    <p style="color: #666;">
+                        <i class="fas fa-cloud-slash"></i> Väderinformation ej tillgänglig
+                    </p>
+                `;
             }
         }
 
+        // Hämta väderikon
+        function getWeatherIcon(condition) {
+            const icons = {
+                'Clear': '☀️',
+                'Clouds': '☁️',
+                'Rain': '🌧️',
+                'Snow': '❄️',
+                'Thunderstorm': '⛈️',
+                'Drizzle': '🌦️',
+                'Mist': '🌫️',
+                'Fog': '🌁'
+            };
+            return icons[condition] || '⛅';
+        }
+
+        // Ladda kalenderhändelser
         async function loadCalendar() {
             try {
                 const response = await fetch('/api/calendar');
+                if (!response.ok) throw new Error('Calendar API failed');
+                
                 const data = await response.json();
                 
+                let calendarHTML = '';
                 if (data.events && data.events.length > 0) {
-                    let html = '<ul style="list-style: none; padding: 0;">';
-                    data.events.slice(0, 3).forEach(event => {
-                        const time = new Date(event.start).toLocaleTimeString('sv-SE', { 
-                            hour: '2-digit', minute: '2-digit' 
-                        });
-                        html += `<li style="margin-bottom: 10px;"><strong>${time}</strong> ${event.title}</li>`;
+                    calendarHTML = '<ul style="list-style: none; padding: 0;">';
+                    
+                    data.events.slice(0, 5).forEach((event, index) => {
+                        const startTime = new Date(event.start);
+                        const endTime = new Date(event.end);
+                        const timeFormat = { hour: '2-digit', minute: '2-digit' };
+                        
+                        const timeString = event.allDay 
+                            ? 'Hela dagen' 
+                            : `${startTime.toLocaleTimeString('sv-SE', timeFormat)} - ${endTime.toLocaleTimeString('sv-SE', timeFormat)}`;
+                        
+                        calendarHTML += `
+                            <li style="margin-bottom: 15px; padding-bottom: 15px; border-bottom: ${index < data.events.slice(0, 5).length - 1 ? '1px solid #f0f0f0' : 'none'}">
+                                <div style="font-weight: bold; margin-bottom: 5px;">${event.title}</div>
+                                <div style="font-size: 14px; color: #666;">
+                                    <i class="far fa-clock"></i> ${timeString}
+                                </div>
+                                ${event.location ? `
+                                <div style="font-size: 14px; color: #666; margin-top: 3px;">
+                                    <i class="fas fa-map-marker-alt"></i> ${event.location}
+                                </div>
+                                ` : ''}
+                            </li>
+                        `;
                     });
-                    html += '</ul>';
-                    document.getElementById('calendarInfo').innerHTML = html;
+                    
+                    calendarHTML += '</ul>';
+                    
+                    if (data.events.length > 5) {
+                        calendarHTML += `<div style="margin-top: 10px; font-size: 14px; color: #666;">
+                            + ${data.events.length - 5} fler händelser
+                        </div>`;
+                    }
                 } else {
-                    document.getElementById('calendarInfo').textContent = 'Inga händelser idag';
+                    calendarHTML = '<p style="color: #666;">Inga händelser idag</p>';
                 }
+                
+                document.getElementById('calendarInfo').innerHTML = calendarHTML;
+                
             } catch (error) {
-                document.getElementById('calendarInfo').textContent = 'Ej tillgängligt';
+                console.error('❌ Failed to load calendar:', error);
+                document.getElementById('calendarInfo').innerHTML = `
+                    <p style="color: #666;">
+                        <i class="far fa-calendar-times"></i> Kalender ej tillgänglig
+                    </p>
+                `;
             }
         }
 
-        // Update last update time
-        setInterval(() => {
+        // Uppdatera "senast uppdaterad"-tiden
+        function updateLastUpdateTime() {
             const now = new Date();
             document.getElementById('lastUpdate').textContent = 
                 now.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
-        }, 60000);
-		
-		function debugImages() {
-			console.log('=== DEBUG IMAGES ===');
-			console.log('Slides array:', slides);
-			
-			if (slides && slides.length > 0) {
-				console.log('First slide:', slides[0]);
-				console.log('Expected URL:', `/images/${slides[0].filename}`);
-				
-				// Testa att ladda första bilden
-				fetch(`/images/${slides[0].filename}`)
-					.then(response => {
-						console.log(`Image load test: ${response.status} ${response.statusText}`);
-					})
-					.catch(error => {
-						console.error('Image load failed:', error);
-					});
-			}
-		}
+        }
 
-		// Kalla denna funktion för att felsöka
-		// debugImages();
+        // Debug-funktioner
+        function debugImages() {
+            console.log('=== DEBUG IMAGES ===');
+            console.log('Slides array length:', slides.length);
+            console.log('Slides:', slides);
+            
+            if (slides && slides.length > 0) {
+                console.log('First slide:', slides[0]);
+                console.log('Expected URL:', `/images/${slides[0].filename}`);
+                
+                // Testa att ladda första bilden
+                fetch(`/images/${slides[0].filename}`)
+                    .then(response => {
+                        console.log(`Image load test: ${response.status} ${response.statusText}`);
+                    })
+                    .catch(error => {
+                        console.error('Image load failed:', error);
+                    });
+            }
+        }
 
-		// Auto-refresh om inga bilder visas
-		setTimeout(() => {
-			if (slides.length === 0) {
-				console.log('No images, attempting refresh...');
-				loadSlides();
-			}
-		}, 5000);
+        // Exponera viktiga funktioner globalt för debugging
+        window.debugImages = debugImages;
+        window.reloadSlides = loadSlides;
+        window.getCurrentSlides = () => slides;
     </script>
 </body>
 </html>

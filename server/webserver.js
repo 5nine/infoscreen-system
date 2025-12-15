@@ -56,8 +56,35 @@ class InfoScreenServer {
     setupRoutes() {
         this.app.get('/api/images', async (req, res) => {
             try {
-                res.json(this.images);
+                // Returnera images med korrekt struktur
+                const images = this.images.map(img => ({
+                    id: img.id,
+                    filename: img.filename,
+                    title: img.title,
+                    description: img.description || '',
+                    order: img.order,
+                    active: img.active,
+                    uploaded: img.uploaded
+                }));
+                res.json(images);
             } catch (error) {
+                res.status(500).json({ error: error.message });
+            }
+        });
+        
+        this.app.get('/api/images-direct', async (req, res) => {
+            try {
+                const imagesPath = path.join(__dirname, '..', 'images');
+                const files = await fs.readdir(imagesPath);
+                
+                const imageFiles = files.filter(file => {
+                    const ext = path.extname(file).toLowerCase();
+                    return this.config.images.allowedExtensions.includes(ext);
+                });
+                
+                res.json(imageFiles);
+            } catch (error) {
+                console.error('Error reading images folder:', error);
                 res.status(500).json({ error: error.message });
             }
         });
@@ -75,31 +102,29 @@ class InfoScreenServer {
             }
         });
         
-		const upload = multer({
-			dest: path.join(__dirname, '..', 'images'),
-			limits: {
-				fileSize: this.config.images.maxFileSize || 5242880
-			},
-			fileFilter: (req, file, cb) => {
-				const ext = path.extname(file.originalname).toLowerCase();
-				if (this.config.images.allowedExtensions.includes(ext)) {
-					cb(null, true);
-				} else {
-					cb(new Error('Invalid file type'));
-				}
-			},
-			// LÄGG TILL DETTA för att behålla filnamn:
-			storage: multer.diskStorage({
-				destination: path.join(__dirname, '..', 'images'),
-				filename: (req, file, cb) => {
-					// Behåll originalnamnet, men lägg till timestamp för att undvika dubbletter
-					const timestamp = Date.now();
-					const name = path.parse(file.originalname).name;
-					const ext = path.extname(file.originalname);
-					cb(null, `${name}_${timestamp}${ext}`);
-				}
-			})
-		});
+        const upload = multer({
+            dest: path.join(__dirname, '..', 'images'),
+            limits: {
+                fileSize: this.config.images.maxFileSize || 5242880
+            },
+            fileFilter: (req, file, cb) => {
+                const ext = path.extname(file.originalname).toLowerCase();
+                if (this.config.images.allowedExtensions.includes(ext)) {
+                    cb(null, true);
+                } else {
+                    cb(new Error('Invalid file type'));
+                }
+            },
+            storage: multer.diskStorage({
+                destination: path.join(__dirname, '..', 'images'),
+                filename: (req, file, cb) => {
+                    const timestamp = Date.now();
+                    const name = path.parse(file.originalname).name;
+                    const ext = path.extname(file.originalname);
+                    cb(null, `${name}_${timestamp}${ext}`);
+                }
+            })
+        });
         
         this.app.post('/api/upload', upload.single('image'), async (req, res) => {
             try {
@@ -390,6 +415,7 @@ class InfoScreenServer {
     async loadImages() {
         try {
             const imagesPath = path.join(__dirname, '..', 'images');
+            await fs.access(imagesPath);
             const files = await fs.readdir(imagesPath);
             
             this.images = files
@@ -400,11 +426,13 @@ class InfoScreenServer {
                 .map((file, index) => ({
                     id: index + 1,
                     filename: file,
-                    title: path.parse(file).name,
+                    originalname: file,
+                    title: path.parse(file).name.replace(/[-_]/g, ' '),
                     description: '',
                     order: index + 1,
                     active: true,
-                    uploaded: new Date().toISOString()
+                    uploaded: new Date().toISOString(),
+                    path: `/images/${file}`
                 }));
             
             console.log(`✅ Loaded ${this.images.length} images`);
