@@ -94,6 +94,64 @@
             cursor: pointer;
         }
         .sidebar { background: #f8f9fa; border-radius: 15px; padding: 30px; }
+		.admin-thumbnail {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+    border-bottom: 3px solid #1e3c72;
+}
+
+.admin-thumbnail:hover {
+    transform: scale(1.02);
+}
+
+.image-card:hover .admin-thumbnail {
+    border-bottom-color: #4ecdc4;
+}
+
+.image-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.edit-btn {
+    background: #f0f7ff;
+    color: #1e3c72;
+    border: 1px solid #1e3c72;
+}
+
+.edit-btn:hover {
+    background: #e0eeff;
+}
+
+.delete-btn {
+    background: #fff0f0;
+    color: #e74c3c;
+    border: 1px solid #e74c3c;
+}
+
+.delete-btn:hover {
+    background: #ffe0e0;
+}
+
+/* Progress bar för uploads */
+.upload-progress {
+    width: 100%;
+    height: 4px;
+    background: #eee;
+    border-radius: 2px;
+    margin-top: 10px;
+    overflow: hidden;
+}
+
+.upload-progress-bar {
+    height: 100%;
+    background: #1e3c72;
+    width: 0%;
+    transition: width 0.3s ease;
+}
     </style>
 </head>
 <body>
@@ -165,55 +223,149 @@
             setupEventListeners();
         });
 
-        async function loadImages() {
-            try {
-                const response = await fetch('/api/images');
-                images = await response.json();
-                renderImages();
-                updateStats();
-            } catch (error) {
-                console.error('Failed to load images:', error);
-            }
-        }
+		async function loadImages() {
+			try {
+				console.log('🔄 Loading images from API...');
+				const response = await fetch('/api/images');
+				
+				if (!response.ok) {
+					throw new Error(`API error: ${response.status}`);
+				}
+				
+				images = await response.json();
+				console.log(`✅ Loaded ${images.length} image(s)`);
+				
+				renderImages();
+				updateStats();
+				
+			} catch (error) {
+				console.error('❌ Failed to load images:', error);
+				showError('Kunde inte ladda bilder. Kontrollera att servern körs.');
+				renderFallback();
+			}
+		}
 
-        function renderImages() {
-            const grid = document.getElementById('imagesGrid');
-            const total = document.getElementById('totalImages');
-            
-            grid.innerHTML = '';
-            
-            if (images.length === 0) {
-                grid.innerHTML = '<p>Inga bilder tillgängliga</p>';
-                total.textContent = '0';
-                return;
-            }
-            
-            images.forEach((image, index) => {
-                const card = document.createElement('div');
-                card.className = 'image-card';
-                card.dataset.id = image.id;
-                
-                card.innerHTML = `
-                    <img src="/images/${image.filename}" alt="${image.title}"
-                         onerror="this.src='https://via.placeholder.com/400x300/1e3c72/ffffff'">
-                    <div class="image-info">
-                        <h3>${image.title || 'Namnlös'}</h3>
-                        <div class="image-actions">
-                            <button class="image-btn" data-action="edit" style="background: #f0f7ff; color: #1e3c72;">
-                                <i class="fas fa-edit"></i> Redigera
-                            </button>
-                            <button class="image-btn" data-action="delete" style="background: #fff0f0; color: #e74c3c;">
-                                <i class="fas fa-trash"></i> Ta bort
-                            </button>
-                        </div>
-                    </div>
-                `;
-                
-                grid.appendChild(card);
-            });
-            
-            total.textContent = images.length;
-        }
+		function renderImages() {
+			const grid = document.getElementById('imagesGrid');
+			const total = document.getElementById('totalImages');
+			
+			grid.innerHTML = '';
+			
+			if (images.length === 0) {
+				grid.innerHTML = `
+					<div style="grid-column: 1 / -1; text-align: center; padding: 60px;">
+						<i class="fas fa-image" style="font-size: 64px; color: #ccc; margin-bottom: 20px;"></i>
+						<h3 style="color: #666;">Inga bilder tillgängliga</h3>
+						<p style="color: #888;">Ladda upp bilder med formuläret ovan</p>
+					</div>
+				`;
+				total.textContent = '0';
+				return;
+			}
+			
+			images.forEach((image, index) => {
+				const card = document.createElement('div');
+				card.className = 'image-card';
+				card.dataset.id = image.id;
+				card.dataset.filename = image.filename;
+				
+				// Skapa bild-URL - använd originalfilnamn
+				const imageUrl = `/images/${image.filename}`;
+				const thumbnailUrl = `/thumbnails/${image.filename}`;
+				
+				card.innerHTML = `
+					<img src="${thumbnailUrl}" 
+						 alt="${image.title || image.filename}"
+						 class="admin-thumbnail"
+						 data-full="${imageUrl}"
+						 onerror="handleAdminImageError(this, '${image.filename}')">
+					<div class="image-info">
+						<h3 title="${image.title || image.filename}">
+							${image.title || image.filename.substring(0, 20)}
+							${image.filename.length > 20 ? '...' : ''}
+						</h3>
+						<p style="font-size: 12px; color: #666; margin: 5px 0;">
+							${formatFileSize(image.size)} • ${new Date(image.uploaded).toLocaleDateString('sv-SE')}
+						</p>
+						<div class="image-actions">
+							<button class="image-btn edit-btn" data-action="edit" title="Redigera">
+								<i class="fas fa-edit"></i> Redigera
+							</button>
+							<button class="image-btn delete-btn" data-action="delete" title="Ta bort">
+								<i class="fas fa-trash"></i> Ta bort
+							</button>
+						</div>
+					</div>
+				`;
+				
+				grid.appendChild(card);
+			});
+			
+			total.textContent = images.length;
+		}
+
+		function handleAdminImageError(imgElement, filename) {
+			console.warn(`⚠️ Thumbnail failed: ${filename}`);
+			
+			// Försök med full-size bilden istället
+			const fullUrl = imgElement.dataset.full;
+			if (fullUrl && fullUrl !== imgElement.src) {
+				imgElement.src = fullUrl;
+				imgElement.onerror = null; // Förhindra loop
+				return;
+			}
+			
+			// Fallback
+			imgElement.src = 'https://via.placeholder.com/400x300/1e3c72/ffffff?text=Thumbnail';
+			imgElement.style.opacity = '0.7';
+		}
+
+		function formatFileSize(bytes) {
+			if (bytes === 0) return '0 Bytes';
+			const k = 1024;
+			const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+			const i = Math.floor(Math.log(bytes) / Math.log(k));
+			return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+		}
+
+		function showError(message) {
+			// Visa felmeddelande
+			const errorDiv = document.createElement('div');
+			errorDiv.style.cssText = `
+				position: fixed;
+				top: 20px;
+				right: 20px;
+				background: #e74c3c;
+				color: white;
+				padding: 15px 25px;
+				border-radius: 8px;
+				z-index: 1000;
+				box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+			`;
+			errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${message}`;
+			document.body.appendChild(errorDiv);
+			
+			setTimeout(() => errorDiv.remove(), 5000);
+		}
+
+		function renderFallback() {
+			const grid = document.getElementById('imagesGrid');
+			grid.innerHTML = `
+				<div style="grid-column: 1 / -1; text-align: center; padding: 40px;">
+					<div style="color: #e74c3c; font-size: 48px; margin-bottom: 20px;">
+						<i class="fas fa-exclamation-circle"></i>
+					</div>
+					<h3>Kan inte ansluta till servern</h3>
+					<p>Kontrollera att info-skärm servern körs:</p>
+					<pre style="background: #f8f9fa; padding: 15px; border-radius: 5px; text-align: left; margin: 20px auto; max-width: 500px;">
+		sudo systemctl status infoscreen
+					</pre>
+					<button onclick="location.reload()" style="padding: 10px 20px; background: #1e3c72; color: white; border: none; border-radius: 5px;">
+						<i class="fas fa-sync-alt"></i> Försök igen
+					</button>
+				</div>
+			`;
+		}
 
         function updateStats() {
             document.getElementById('imagesCount').textContent = images.length;
@@ -227,32 +379,79 @@
             
             uploadArea.addEventListener('click', () => fileInput.click());
             
-            fileInput.addEventListener('change', async (e) => {
-                if (e.target.files.length === 0) return;
-                
-                const formData = new FormData();
-                for (const file of e.target.files) {
-                    formData.append('image', file);
-                }
-                
-                try {
-                    const response = await fetch('/api/upload', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    
-                    if (response.ok) {
-                        await loadImages();
-                        alert(`${e.target.files.length} bilder uppladdade`);
-                        fileInput.value = '';
-                    } else {
-                        alert('Uppladdning misslyckades');
-                    }
-                } catch (error) {
-                    console.error('Upload error:', error);
-                    alert('Fel vid uppladdning');
-                }
-            });
+		fileInput.addEventListener('change', async (e) => {
+			if (e.target.files.length === 0) return;
+			
+			const uploadArea = document.getElementById('uploadArea');
+			const originalHTML = uploadArea.innerHTML;
+			
+			// Visa laddningsstatus
+			uploadArea.innerHTML = `
+				<div style="text-align: center;">
+					<i class="fas fa-spinner fa-spin" style="font-size: 48px; color: #1e3c72;"></i>
+					<p>Laddar upp ${e.target.files.length} bild(er)...</p>
+				</div>
+			`;
+			
+			const formData = new FormData();
+			for (const file of e.target.files) {
+				formData.append('image', file);
+			}
+			
+			try {
+				const response = await fetch('/api/upload', {
+					method: 'POST',
+					body: formData
+				});
+				
+				if (!response.ok) {
+					const error = await response.json();
+					throw new Error(error.error || 'Uppladdning misslyckades');
+				}
+				
+				const result = await response.json();
+				
+				if (result.success) {
+					// Visa success meddelande
+					uploadArea.innerHTML = `
+						<div style="text-align: center; color: #27ae60;">
+							<i class="fas fa-check-circle" style="font-size: 48px;"></i>
+							<p>${e.target.files.length} bild(er) uppladdade!</p>
+						</div>
+					`;
+					
+					// Ladda om bildlistan efter 2 sekunder
+					setTimeout(() => {
+						loadImages();
+						uploadArea.innerHTML = originalHTML;
+					}, 2000);
+					
+				} else {
+					throw new Error(result.error || 'Okänt fel');
+				}
+				
+			} catch (error) {
+				console.error('Upload error:', error);
+				
+				uploadArea.innerHTML = `
+					<div style="text-align: center; color: #e74c3c;">
+						<i class="fas fa-times-circle" style="font-size: 48px;"></i>
+						<p>Fel vid uppladdning: ${error.message}</p>
+						<button onclick="location.reload()" style="margin-top: 10px; padding: 8px 16px; background: #1e3c72; color: white; border: none; border-radius: 5px;">
+							Försök igen
+						</button>
+					</div>
+				`;
+				
+				// Återställ efter 5 sekunder
+				setTimeout(() => {
+					uploadArea.innerHTML = originalHTML;
+				}, 5000);
+			}
+			
+			// Återställ file input
+			fileInput.value = '';
+		});
             
             document.getElementById('refreshBtn').addEventListener('click', loadImages);
             document.getElementById('backBtn').addEventListener('click', () => {

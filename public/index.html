@@ -196,30 +196,112 @@
             setInterval(update, 1000);
         }
 
-        async function loadSlides() {
-            try {
-                const response = await fetch('/api/images');
-                slides = await response.json();
-                
-                if (slides.length === 0) {
-                    slides = [{ filename: 'fallback.jpg', title: 'Välkommen' }];
-                }
-                
-                const container = document.getElementById('slideshowContainer');
-                slides.forEach((slide, index) => {
-                    const slideElement = document.createElement('div');
-                    slideElement.className = `slide ${index === 0 ? 'active' : ''}`;
-                    slideElement.innerHTML = `
-                        <img src="/images/${slide.filename}" alt="${slide.title}" class="slide-image"
-                             onerror="this.src='https://via.placeholder.com/1920x1080/1e3c72/ffffff?text=Sj%C3%A4levads+Bygg'">
-                    `;
-                    container.appendChild(slideElement);
-                });
-                
-            } catch (error) {
-                console.error('Failed to load slides:', error);
-            }
-        }
+		async function loadSlides() {
+			try {
+				console.log('📸 Loading images...');
+				const response = await fetch('/api/images');
+				
+				if (!response.ok) {
+					throw new Error(`API error: ${response.status}`);
+				}
+				
+				slides = await response.json();
+				console.log(`✅ Loaded ${slides.length} image(s) from API`);
+				
+				if (slides.length === 0) {
+					console.warn('⚠️ No images in database, checking images folder...');
+					
+					// Fallback: Visa bilder direkt från images-mappen
+					try {
+						const imagesResponse = await fetch('/api/images-direct');
+						const images = await imagesResponse.json();
+						
+						slides = images.map((filename, index) => ({
+							id: index + 1,
+							filename: filename,
+							title: filename.replace(/\.[^/.]+$/, ""), // Ta bort filändelse
+							description: '',
+							order: index + 1,
+							active: true
+						}));
+						
+						console.log(`📁 Found ${slides.length} image(s) in folder`);
+					} catch (folderError) {
+						console.warn('Using hardcoded fallback');
+						slides = [
+							{ 
+								id: 1, 
+								filename: 'fallback.jpg', 
+								title: 'Välkommen till Själevads Bygg', 
+								description: 'Ladda upp bilder i admin panelen' 
+							}
+						];
+					}
+				}
+				
+				// Render slides
+				renderSlides();
+				updateSlideCounter();
+				
+			} catch (error) {
+				console.error('❌ Failed to load slides:', error);
+				showErrorFallback();
+			}
+		}
+
+		function renderSlides() {
+			const container = document.getElementById('slideshowContainer');
+			container.innerHTML = '';
+			
+			slides.forEach((slide, index) => {
+				const slideElement = document.createElement('div');
+				slideElement.className = `slide ${index === 0 ? 'active' : ''}`;
+				slideElement.dataset.index = index;
+				
+				// Bygg bild-URL: använd direkt filnamn från API
+				const imageUrl = `/images/${slide.filename}`;
+				
+				slideElement.innerHTML = `
+					<img src="${imageUrl}" 
+						 alt="${slide.title || 'Bild'}" 
+						 class="slide-image"
+						 loading="lazy"
+						 onerror="handleImageError(this, '${slide.filename}')">
+					<div class="slide-info">
+						<div class="slide-title">${slide.title || 'Bild ' + (index + 1)}</div>
+						<div class="slide-description">${slide.description || ''}</div>
+					</div>
+				`;
+				
+				container.appendChild(slideElement);
+			});
+		}
+
+		function handleImageError(imgElement, filename) {
+			console.warn(`⚠️ Failed to load: ${filename}`);
+			imgElement.src = 'https://via.placeholder.com/1920x1080/1e3c72/ffffff?text=Sj%C3%A4levads+Bygg';
+			imgElement.alt = 'Bild kunde inte laddas';
+		}
+
+		function showErrorFallback() {
+			const container = document.getElementById('slideshowContainer');
+			container.innerHTML = `
+				<div class="slide active">
+					<div style="width:100%;height:100%;display:flex;flex-direction:column;justify-content:center;align-items:center;background:#1e3c72;color:white;">
+						<h1 style="font-size:48px;margin-bottom:20px;">Själevads Bygg</h1>
+						<p style="font-size:24px;">Info-skärm systemet</p>
+						<p style="margin-top:20px;font-size:18px;color:#ccc;">Kontrollera att servern körs</p>
+					</div>
+				</div>
+			`;
+			document.getElementById('currentSlide').textContent = '1';
+			document.getElementById('totalSlides').textContent = '1';
+		}
+
+		function updateSlideCounter() {
+			document.getElementById('currentSlide').textContent = '1';
+			document.getElementById('totalSlides').textContent = slides.length;
+		}
 
         function initSlideshow() {
             slideInterval = setInterval(nextSlide, 10000);
@@ -301,6 +383,36 @@
             document.getElementById('lastUpdate').textContent = 
                 now.toLocaleTimeString('sv-SE', { hour: '2-digit', minute: '2-digit' });
         }, 60000);
+		
+		function debugImages() {
+			console.log('=== DEBUG IMAGES ===');
+			console.log('Slides array:', slides);
+			
+			if (slides && slides.length > 0) {
+				console.log('First slide:', slides[0]);
+				console.log('Expected URL:', `/images/${slides[0].filename}`);
+				
+				// Testa att ladda första bilden
+				fetch(`/images/${slides[0].filename}`)
+					.then(response => {
+						console.log(`Image load test: ${response.status} ${response.statusText}`);
+					})
+					.catch(error => {
+						console.error('Image load failed:', error);
+					});
+			}
+		}
+
+		// Kalla denna funktion för att felsöka
+		// debugImages();
+
+		// Auto-refresh om inga bilder visas
+		setTimeout(() => {
+			if (slides.length === 0) {
+				console.log('No images, attempting refresh...');
+				loadSlides();
+			}
+		}, 5000);
     </script>
 </body>
 </html>
