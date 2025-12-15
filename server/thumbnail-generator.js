@@ -9,18 +9,35 @@ class ThumbnailGenerator {
             thumbnailsDir: './thumbnails',
             width: 400,
             height: 300,
-            quality: 80
+            quality: 80,
+            format: 'jpeg'
+        };
+        
+        this.stats = {
+            processed: 0,
+            skipped: 0,
+            failed: 0,
+            startTime: null
         };
     }
     
     async init() {
-        console.log('🖼️ Starting Thumbnail Generator...');
+        console.log('🖼️  Starting Thumbnail Generator for Själevads Bygg Info Screen...');
+        this.stats.startTime = Date.now();
         
-        await this.loadConfig();
-        await this.ensureDirectories();
-        await this.generateAllThumbnails();
-        
-        console.log('✅ Thumbnail generation complete');
+        try {
+            await this.loadConfig();
+            await this.ensureDirectories();
+            
+            const result = await this.generateAllThumbnails();
+            await this.cleanupOrphanedThumbnails();
+            
+            this.printSummary(result);
+            
+        } catch (error) {
+            console.error('❌ Initialization failed:', error.message);
+            process.exit(1);
+        }
     }
     
     async loadConfig() {
@@ -37,9 +54,14 @@ class ThumbnailGenerator {
                 this.config.quality = config.images.quality || this.config.quality;
             }
             
-            console.log('✅ Configuration loaded');
+            console.log('✅ Configuration loaded:');
+            console.log(`   Source: ${this.config.imagesDir}`);
+            console.log(`   Target: ${this.config.thumbnailsDir}`);
+            console.log(`   Size: ${this.config.width}x${this.config.height}`);
+            console.log(`   Quality: ${this.config.quality}%`);
+            
         } catch (error) {
-            console.warn('⚠️ Using default configuration:', error.message);
+            console.warn('⚠️  Using default configuration');
         }
     }
     
@@ -47,39 +69,61 @@ class ThumbnailGenerator {
         try {
             await fs.mkdir(this.config.imagesDir, { recursive: true });
             await fs.mkdir(this.config.thumbnailsDir, { recursive: true });
+            
             console.log('✅ Directories ready');
+            
         } catch (error) {
-            console.error('❌ Failed to create directories:', error);
+            console.error('❌ Failed to create directories:', error.message);
             throw error;
         }
     }
     
     async generateAllThumbnails() {
         try {
+            console.log('\n📸 Scanning for images...');
+            
             const files = await fs.readdir(this.config.imagesDir);
-            const imageFiles = files.filter(file => 
-                ['.jpg', '.jpeg', '.png', '.gif'].includes(path.extname(file).toLowerCase())
-            );
             
-            console.log(`📸 Found ${imageFiles.length} images to process`);
+            // Filter for image files
+            const imageFiles = files.filter(file => {
+                const ext = path.extname(file).toLowerCase();
+                return ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp'].includes(ext);
+            });
             
-            let successCount = 0;
-            let errorCount = 0;
+            if (imageFiles.length === 0) {
+                console.log('ℹ️  No images found in', this.config.imagesDir);
+                return { total: 0, processed: 0, skipped: 0, failed: 0 };
+            }
             
-            for (const file of imageFiles) {
+            console.log(`   Found ${imageFiles.length} image(s)`);
+            
+            // Process images
+            for (const [index, filename] of imageFiles.entries()) {
                 try {
-                    await this.generateThumbnail(file);
-                    successCount++;
+                    const progress = Math.round(((index + 1) / imageFiles.length) * 100);
+                    process.stdout.write(`\r🔄 Processing: ${progress}% (${index + 1}/${imageFiles.length})`);
+                    
+                    await this.generateThumbnail(filename);
+                    this.stats.processed++;
+                    
                 } catch (error) {
-                    console.error(`❌ Failed to generate thumbnail for ${file}:`, error.message);
-                    errorCount++;
+                    console.error(`\n❌ Failed: ${filename} - ${error.message}`);
+                    this.stats.failed++;
                 }
             }
             
-            console.log(`📊 Results: ${successCount} successful, ${errorCount} failed`);
+            console.log('\n'); // New line after progress
+            
+            return {
+                total: imageFiles.length,
+                processed: this.stats.processed,
+                skipped: this.stats.skipped,
+                failed: this.stats.failed
+            };
             
         } catch (error) {
-            console.error('❌ Failed to read images directory:', error);
+            console.error('❌ Failed to scan images:', error.message);
+            return { total: 0, processed: 0, skipped: 0, failed: 1 };
         }
     }
     
@@ -92,32 +136,41 @@ class ThumbnailGenerator {
             const inputStats = await fs.stat(inputPath);
             const outputStats = await fs.stat(outputPath).catch(() => null);
             
+            // Skip if thumbnail exists and is newer than source
             if (outputStats && outputStats.mtime >= inputStats.mtime) {
-                console.log(`⏩ Skipping ${filename} (already up to date)`);
-                return;
+                this.stats.skipped++;
+                return { skipped: true, filename };
             }
+            
         } catch (error) {
             // File doesn't exist or other error, proceed with generation
         }
         
-        console.log(`🔄 Generating thumbnail for: ${filename}`);
-        
         try {
-            await sharp(inputPath)
+            const image = sharp(inputPath);
+            const metadata = await image.metadata();
+            
+            // Determine output format based on input or config
+            const outputFormat = this.config.format || (metadata.format === 'png' ? 'png' : 'jpeg');
+            
+            // Generate thumbnail
+            await image
                 .resize(this.config.width, this.config.height, {
                     fit: 'cover',
-                    position: 'center'
+                    position: 'center',
+                    withoutEnlargement: true
                 })
-                .jpeg({ 
+                .toFormat(outputFormat, {
                     quality: this.config.quality,
-                    mozjpeg: true 
+                    progressive: true,
+                    optimiseScans: true
                 })
                 .toFile(outputPath);
             
-            console.log(`✅ Created: ${filename}`);
+            return { success: true, filename, format: outputFormat };
             
         } catch (error) {
-            // Try with different approach if first fails
+            // Fallback: try simpler resize if first attempt fails
             try {
                 await sharp(inputPath)
                     .resize(this.config.width, this.config.height, {
@@ -127,22 +180,11 @@ class ThumbnailGenerator {
                     .jpeg({ quality: this.config.quality })
                     .toFile(outputPath);
                 
-                console.log(`✅ Created (alternative method): ${filename}`);
+                return { success: true, filename, format: 'jpeg (fallback)' };
                 
-            } catch (secondError) {
-                console.error(`❌ Failed completely for ${filename}:`, secondError.message);
-                throw secondError;
+            } catch (fallbackError) {
+                throw new Error(`Generation failed: ${fallbackError.message}`);
             }
-        }
-    }
-    
-    async generateForSingleImage(filePath) {
-        try {
-            const filename = path.basename(filePath);
-            await this.generateThumbnail(filename);
-            return { success: true, filename };
-        } catch (error) {
-            return { success: false, error: error.message, filename };
         }
     }
     
@@ -158,23 +200,125 @@ class ThumbnailGenerator {
                 if (!imageSet.has(thumbnail)) {
                     const thumbnailPath = path.join(this.config.thumbnailsDir, thumbnail);
                     await fs.unlink(thumbnailPath);
-                    console.log(`🗑️ Deleted orphaned thumbnail: ${thumbnail}`);
                     deletedCount++;
                 }
             }
             
-            console.log(`🧹 Cleanup complete: ${deletedCount} orphaned thumbnails removed`);
+            if (deletedCount > 0) {
+                console.log(`🧹 Cleanup: Removed ${deletedCount} orphaned thumbnail(s)`);
+            }
             
         } catch (error) {
-            console.error('❌ Cleanup failed:', error);
+            console.warn('⚠️  Cleanup failed:', error.message);
         }
+    }
+    
+    printSummary(result) {
+        const duration = ((Date.now() - this.stats.startTime) / 1000).toFixed(1);
+        
+        console.log('📊 Summary:');
+        console.log('────────────────────');
+        console.log(`   Total images:    ${result.total}`);
+        console.log(`   Processed:       ${result.processed} ✅`);
+        console.log(`   Skipped (fresh): ${result.skipped} ⏭️`);
+        console.log(`   Failed:          ${result.failed} ❌`);
+        console.log(`   Time:            ${duration}s ⏱️`);
+        console.log('────────────────────');
+        
+        if (result.failed === 0) {
+            console.log('🎉 All thumbnails generated successfully!');
+        } else {
+            console.log(`ℹ️  ${result.failed} thumbnail(s) failed to generate`);
+        }
+    }
+    
+    // Method to generate thumbnail for a single file (for use by webserver)
+    async generateForSingleImage(filePath) {
+        try {
+            const filename = path.basename(filePath);
+            const result = await this.generateThumbnail(filename);
+            
+            if (result.skipped) {
+                return { success: true, message: 'Thumbnail already up to date', filename };
+            }
+            
+            return { success: true, filename, ...result };
+            
+        } catch (error) {
+            return { success: false, error: error.message, filename: path.basename(filePath) };
+        }
+    }
+    
+    // Method to regenerate all thumbnails (force)
+    async regenerateAll() {
+        console.log('🔄 Forcing regeneration of all thumbnails...');
+        
+        const files = await fs.readdir(this.config.imagesDir);
+        const imageFiles = files.filter(file => {
+            const ext = path.extname(file).toLowerCase();
+            return ['.jpg', '.jpeg', '.png', '.gif'].includes(ext);
+        });
+        
+        let success = 0;
+        let failed = 0;
+        
+        for (const filename of imageFiles) {
+            try {
+                const outputPath = path.join(this.config.thumbnailsDir, filename);
+                // Delete existing thumbnail
+                await fs.unlink(outputPath).catch(() => {});
+                
+                // Generate new
+                await this.generateThumbnail(filename);
+                success++;
+                
+            } catch (error) {
+                console.error(`❌ Failed to regenerate ${filename}:`, error.message);
+                failed++;
+            }
+        }
+        
+        console.log(`✅ Regenerated ${success} thumbnail(s), ${failed} failed`);
+        return { success, failed };
     }
 }
 
 // Run if called directly
 if (require.main === module) {
     const generator = new ThumbnailGenerator();
-    generator.init().catch(console.error);
+    
+    // Handle command line arguments
+    const args = process.argv.slice(2);
+    
+    const runGenerator = async () => {
+        if (args.includes('--force') || args.includes('-f')) {
+            await generator.init();
+            await generator.regenerateAll();
+        } else if (args.includes('--cleanup') || args.includes('-c')) {
+            await generator.init();
+            await generator.cleanupOrphanedThumbnails();
+        } else if (args.includes('--help') || args.includes('-h')) {
+            console.log(`
+🖼️ Thumbnail Generator for Själevads Bygg Info Screen
+─────────────────────────────────────
+Usage: node thumbnail-generator.js [options]
+
+Options:
+  --force, -f     Force regeneration of all thumbnails
+  --cleanup, -c   Clean up orphaned thumbnails only
+  --help, -h      Show this help message
+
+Examples:
+  node thumbnail-generator.js          # Normal generation
+  node thumbnail-generator.js --force  # Force regenerate all
+  node thumbnail-generator.js --cleanup # Cleanup only
+            `);
+        } else {
+            await generator.init();
+        }
+    };
+    
+    runGenerator().catch(console.error);
 }
 
 module.exports = ThumbnailGenerator;
